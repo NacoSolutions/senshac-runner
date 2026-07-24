@@ -24,3 +24,7 @@ consumer repository:
 SENSHAC_WEB_REPO=/path/to/senshac \
   scripts/act-ci
 ```
+
+Dry-run verification on 2026-07-24 completed successfully from this runner
+repository against `/home/rona/Repositories/.ru/NacoSolutions/senshac/main`,
+using rootless Podman and `ghcr.io/nacosolutions/senshac-ci-runner:latest`.
