@@ -1,0 +1,47 @@
+name: Publish CI Runner Container
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".flox/env/manifest.toml"
+      - ".flox/env/manifest.lock"
+      - ".github/workflows/publish-ci-runner.yml"
+      - "scripts/build-ci-runner"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: nacosolutions/senshac-ci-runner
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: flox/install-flox-action@v2
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build CI runner image
+        run: |
+          image="${REGISTRY}/${IMAGE_NAME}"
+          CONTAINER_RUNTIME=docker scripts/build-ci-runner "${image}:sha-${GITHUB_SHA}"
+          docker tag "${image}:sha-${GITHUB_SHA}" "${image}:latest"
+
+      - name: Push CI runner image
+        run: |
+          image="${REGISTRY}/${IMAGE_NAME}"
+          docker push "${image}:sha-${GITHUB_SHA}"
+          docker push "${image}:latest"
