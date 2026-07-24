@@ -3,14 +3,25 @@ set -euo pipefail
 
 socket="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman/podman.sock"
 
+target_repo="${SENSHAC_WEB_REPO:-${1:-}}"
+if [[ -z "$target_repo" ]]; then
+  echo "Usage: SENSHAC_WEB_REPO=/path/to/senshac [args...] $0" >&2
+  exit 2
+fi
+target_repo="$(realpath "$target_repo")"
+if [[ ! -d "$target_repo/.git" ]]; then
+  echo "Target repository is not a Git worktree or wrapper: $target_repo" >&2
+  exit 1
+fi
+
 if [[ ! -S "$socket" ]]; then
   systemctl --user start podman.socket
 fi
 
 export DOCKER_HOST="unix://${socket}"
 
-common_dir="$(git rev-parse --path-format=absolute --git-common-dir)"
-head="$(git rev-parse HEAD)"
+common_dir="$(git -C "$target_repo" rev-parse --path-format=absolute --git-common-dir)"
+head="$(git -C "$target_repo" rev-parse HEAD)"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 

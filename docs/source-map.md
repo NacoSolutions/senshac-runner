@@ -14,3 +14,13 @@ Initial extraction from `NacoSolutions/senshac`:
 
 The source web repository remains authoritative until clean-container
 verification and workflow parity pass from this repository.
+
+## Local Act consumer
+
+Run the runner against an explicit web checkout. The runner does not guess its
+consumer repository:
+
+```bash
+SENSHAC_WEB_REPO=/path/to/senshac \
+  scripts/act-ci
+```
