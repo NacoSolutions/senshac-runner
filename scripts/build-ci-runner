@@ -5,7 +5,7 @@ repo="$(git rev-parse --show-toplevel)"
 runtime="${CONTAINER_RUNTIME:-podman}"
 target="${1:-senshac-ci-runner:latest}"
 build_tag="ci-runner"
-base_image="senshac:$build_tag"
+base_image="senshac-runner:$build_tag"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
@@ -16,6 +16,9 @@ RUN ["/bin/mkdir", "-p", "/usr/bin"]
 RUN ["/bin/ln", "-sf", "/bin/env", "/usr/bin/env"]
 RUN ["/bin/sh", "-c", "set -- /nix/store/*-glibc-*/lib/ld-linux-x86-64.so.2; test -e \"\$1\"; /bin/ln -s \"\${1%/*}\" /lib64"]
 ENV HOME=/tmp XDG_CONFIG_HOME=/tmp/.config
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt
+ENV NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-bundle.crt
 EOF
 
 exec "$runtime" build -f "$tmp/Containerfile" -t "$target" "$tmp"

@@ -25,6 +25,12 @@ SENSHAC_WEB_REPO=/path/to/senshac \
   scripts/act-ci
 ```
 
-Dry-run verification on 2026-07-24 completed successfully from this runner
-repository against `/home/rona/Repositories/.ru/NacoSolutions/senshac/main`,
-using rootless Podman and `ghcr.io/nacosolutions/senshac-ci-runner:latest`.
+Set `CI_RUNNER_IMAGE` to test an immutable or local candidate image before
+advancing the published convenience tag.
+
+Rootless Act verification on 2026-07-24 used the local immutable candidate
+`localhost/senshac-ci-runner:ca-unzip-v2`. The image completed checkout,
+dependency installation, and the Astro build before reaching the same Knip
+5.21.2 dependency-guard failure reproduced directly on the host. This verifies
+the image bootstrap and narrows the remaining failure to the consumer
+repository rather than the runner.

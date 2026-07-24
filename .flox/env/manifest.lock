@@ -131,6 +131,9 @@
         "pkg-path": "typescript-language-server",
         "pkg-group": "typescript-language-server"
       },
+      "unzip": {
+        "pkg-path": "unzip"
+      },
       "worktrunk": {
         "pkg-path": "worktrunk",
         "pkg-group": "worktrunk"
@@ -856,6 +859,38 @@
       ],
       "outputs": {
         "out": "/nix/store/5a8ysg1jnj8jmzzyfcfw7rvpvnp5rfpa-nodejs-24.15.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "unzip",
+      "broken": false,
+      "derivation": "/nix/store/ix825513704wd029zvg5rqakizag6w2r-unzip-6.0.drv",
+      "description": "Extraction utility for archives compressed in .zip format",
+      "install_id": "unzip",
+      "license": "Info-ZIP",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=567a49d1913ce81ac6e9582e3553dd90a955875f",
+      "name": "unzip-6.0",
+      "pname": "unzip",
+      "rev": "567a49d1913ce81ac6e9582e3553dd90a955875f",
+      "rev_count": 1017464,
+      "rev_date": "2026-06-16T02:33:49Z",
+      "scrape_date": "2026-06-17T04:50:45.433339Z",
+      "stabilities": [
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "6.0",
+      "outputs_to_install": [
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/mhw4sjc1rz4zmb3vkdinvfm7ym96fazx-unzip-6.0"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
