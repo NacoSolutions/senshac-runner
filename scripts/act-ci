@@ -9,7 +9,7 @@ if [[ -z "$target_repo" ]]; then
   exit 2
 fi
 target_repo="$(realpath "$target_repo")"
-if [[ ! -d "$target_repo/.git" ]]; then
+if [[ ! -e "$target_repo/.git" ]]; then
   echo "Target repository is not a Git worktree or wrapper: $target_repo" >&2
   exit 1
 fi
