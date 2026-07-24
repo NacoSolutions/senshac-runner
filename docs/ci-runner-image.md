@@ -51,3 +51,6 @@ temporary checkout so Act runs against committed state, matching GitHub CI.
 When `.flox/env/manifest.toml` or `.flox/env/manifest.lock` changes, publish a
 new image before expecting GitHub CI to use new tools. The publish workflow runs
 on main for those files and can also be started manually from GitHub Actions.
+It pushes the immutable `sha-<commit>` tag first, pulls and smoke-tests that
+registry artifact, and only then advances `latest`. The workflow summary records
+both the verified digest and the previous `latest` digest for rollback.

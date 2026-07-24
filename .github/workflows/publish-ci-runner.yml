@@ -38,10 +38,65 @@ jobs:
         run: |
           image="${REGISTRY}/${IMAGE_NAME}"
           CONTAINER_RUNTIME=docker scripts/build-ci-runner "${image}:sha-${GITHUB_SHA}"
-          docker tag "${image}:sha-${GITHUB_SHA}" "${image}:latest"
 
-      - name: Push CI runner image
+      - name: Record current rollback digest
+        id: rollback
+        run: |
+          image="${REGISTRY}/${IMAGE_NAME}"
+          if docker pull "${image}:latest"; then
+            digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${image}:latest")"
+          else
+            digest="none (first publication)"
+          fi
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+      - name: Push immutable image
         run: |
           image="${REGISTRY}/${IMAGE_NAME}"
           docker push "${image}:sha-${GITHUB_SHA}"
+
+      - name: Verify published immutable image
+        id: immutable
+        run: |
+          image="${REGISTRY}/${IMAGE_NAME}"
+          immutable="${image}:sha-${GITHUB_SHA}"
+          docker image rm "${immutable}"
+          docker pull "${immutable}"
+          docker run --rm --entrypoint sh "${immutable}" -lc '
+            command -v bun
+            command -v flox
+            command -v gcc
+            command -v unzip
+            node -e "require(\"https\").get(\"https://github.com\", response => {
+              if (response.statusCode < 200 || response.statusCode >= 400) process.exit(1);
+              response.resume();
+            }).on(\"error\", () => process.exit(1))"
+            bun -e "const response = await fetch(\"https://github.com\"); if (!response.ok) process.exit(1)"
+          '
+          digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${immutable}")"
+          case "$digest" in
+            *@sha256:*) ;;
+            *) echo "Published image has no registry digest: $digest" >&2; exit 1 ;;
+          esac
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+      - name: Promote verified image to latest
+        run: |
+          image="${REGISTRY}/${IMAGE_NAME}"
+          immutable="${image}:sha-${GITHUB_SHA}"
+          docker tag "${immutable}" "${image}:latest"
           docker push "${image}:latest"
+          docker image rm "${image}:latest"
+          docker pull "${image}:latest"
+          latest="$(docker inspect --format '{{index .RepoDigests 0}}' "${image}:latest")"
+          test "$latest" = "${{ steps.immutable.outputs.digest }}"
+
+      - name: Record publication
+        run: |
+          {
+            echo "## CI runner publication"
+            echo
+            echo "- Immutable: \`${{ steps.immutable.outputs.digest }}\`"
+            echo "- Previous latest (rollback): \`${{ steps.rollback.outputs.digest }}\`"
+            echo "- Promoted tag: \`${REGISTRY}/${IMAGE_NAME}:latest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
