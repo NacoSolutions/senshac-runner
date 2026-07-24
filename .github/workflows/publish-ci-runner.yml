@@ -13,7 +13,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: nacosolutions/senshac-ci-runner
+  IMAGE_NAME: nacosolutions/senshac-runner
 
 jobs:
   build-and-push:

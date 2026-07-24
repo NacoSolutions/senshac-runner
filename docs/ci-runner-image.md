@@ -7,8 +7,8 @@ local Act runs. It is built from the project Flox environment with
 `flox containerize`, then published to:
 
 ```text
-ghcr.io/nacosolutions/senshac-ci-runner:latest
-ghcr.io/nacosolutions/senshac-ci-runner:sha-<commit>
+ghcr.io/nacosolutions/senshac-runner:latest
+ghcr.io/nacosolutions/senshac-runner:sha-<commit>
 ```
 
 ## Why
@@ -33,7 +33,7 @@ glibc runtime at `/lib64` so Cloudflare's prebuilt `workerd` executable can
 load inside the otherwise non-FHS image. Override the runtime when needed:
 
 ```bash
-CONTAINER_RUNTIME=docker dx scripts/build-ci-runner ghcr.io/nacosolutions/senshac-ci-runner:test
+CONTAINER_RUNTIME=docker dx scripts/build-ci-runner ghcr.io/nacosolutions/senshac-runner:test
 ```
 
 ## Local CI
