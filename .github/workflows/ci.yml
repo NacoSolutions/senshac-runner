@@ -25,5 +25,5 @@ jobs:
           test -x scripts/act-ci
       - name: Validate Flox manifest
         run: |
-          grep -q '^version = ' .flox/env/manifest.toml
+          grep -q '^schema-version = ' .flox/env/manifest.toml
           test -s .flox/env/manifest.lock
