@@ -5,14 +5,16 @@
 Flox/Nix is valuable for repository quality gates and the published CI runner,
 but it is not required in the Warren agent image. Production needs reproducible
 builds, Cloudflare tooling, Bun dependencies, and media tooling; these belong
-to CI and the media runner. Warren primarily needs to inspect repositories,
+to CI and the media runner. The agent image uses Node 24 because Pi currently
+exercises Node/Web API compatibility that Bun 1.3.13 does not fully provide.
+Warren primarily needs to inspect repositories, edit files, run lightweight checks,
 edit files, run lightweight checks, update Seeds, and prepare pull requests.
 
 ## Runtime split
 
 ```text
 Warren agent image
-  Pi + Git + GitHub CLI + Bun + lightweight project CLIs
+  Pi + Node 24 + Git + GitHub CLI + lightweight project CLIs
           |
           v
 senshac-runner / GitHub CI
@@ -26,7 +28,7 @@ invoke a sibling runner or defer heavyweight validation to GitHub Actions.
 
 - Pi
 - Git and GitHub CLI
-- Bun/Node runtime
+- Node 24 runtime for Pi; Bun remains the Senshac repository/tooling runtime
 - `jq`, `yq`, and POSIX shell utilities
 - Seeds, Mulch, Canopy, Terrarium, and Jayminwest Trellis
 - Warren repository/run helper scripts
@@ -43,3 +45,21 @@ invoke a sibling runner or defer heavyweight validation to GitHub Actions.
 
 Maintain one minimal Warren agent image and the existing full CI runner image.
 Do not merge them unless measured evidence shows the boundary harms reliability.
+
+## Bun compatibility boundary
+
+Bun remains preferred for Senshac repository tooling and application builds. Do
+not replace Node with a `node -> bun` symlink in the Warren image: Pi 0.85.1
+failed under Bun 1.3.13 with `webidl.util.markAsUncloneable is not a function`.
+Application-owned Bun services may use a narrowly scoped preload shim when a
+dependency requires it, but the Warren agent runtime must use a real Node 24
+binary until Pi passes the same production smoke tests under Bun.
+
+When evaluating Bun for an application, test the bundled production path rather
+than only development startup:
+
+```sh
+bun install --frozen-lockfile
+bun run build
+bun run start
+```
