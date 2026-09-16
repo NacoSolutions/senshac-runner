@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Validate shell scripts
+        run: bash -n scripts/*
+      - name: Validate runner documentation and image contract
+        run: |
+          test -s AGENTS.md
+          test -s docs/ci-runner-image.md
+          test -s docs/warren-agent-runtime.md
+          test -x scripts/build-ci-runner
+          test -x scripts/act-ci
+      - name: Validate Flox manifest
+        run: |
+          grep -q '^schema-version = ' .flox/env/manifest.toml
+          test -s .flox/env/manifest.lock
