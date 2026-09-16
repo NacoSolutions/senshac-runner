@@ -1,0 +1,63 @@
+name: Publish Warren Agent Image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - Containerfile.warren-agent
+      - scripts/build-warren-agent
+      - .github/workflows/publish-warren-agent.yml
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: nacosolutions/senshac-warren-agent
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build immutable agent image
+        run: |
+          image="${REGISTRY}/${IMAGE_NAME}"
+          CONTAINER_RUNTIME=docker scripts/build-warren-agent "${image}:sha-${GITHUB_SHA}"
+
+      - name: Smoke-test agent image
+        run: |
+          image="${REGISTRY}/${IMAGE_NAME}:sha-${GITHUB_SHA}"
+          docker run --rm --entrypoint sh "$image" -lc '
+            node --version
+            pi --version
+            gh --version
+            git --version
+            jq --version
+          '
+
+      - name: Push immutable image
+        run: |
+          image="${REGISTRY}/${IMAGE_NAME}"
+          docker push "${image}:sha-${GITHUB_SHA}"
+
+      - name: Promote verified image to latest
+        run: |
+          image="${REGISTRY}/${IMAGE_NAME}"
+          immutable="${image}:sha-${GITHUB_SHA}"
+          docker tag "$immutable" "${image}:latest"
+          docker push "${image}:latest"
+
+      - name: Record publication
+        run: |
+          echo "Published ${REGISTRY}/${IMAGE_NAME}:sha-${GITHUB_SHA}"
+          echo "Promoted ${REGISTRY}/${IMAGE_NAME}:latest"
