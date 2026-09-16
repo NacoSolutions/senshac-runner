@@ -38,3 +38,4 @@ ghcr.io/nacosolutions/senshac-warren-agent@sha256:59d9810bb74a280821623e0eaa992e
 
 Do not use `latest` for the migration test. Roll back by restoring the prior
 Warren app container and leaving the data volume untouched.
+Docker-provider runs require the control plane and sibling agents to share the same host-visible workspace path.
