@@ -7,6 +7,6 @@ target="${1:-senshac-warren-agent:latest}"
 
 exec "$runtime" build \
   --build-arg GH_VERSION="${GH_VERSION:-2.80.0}" \
-  --build-arg PI_VERSION="${PI_VERSION:-0.53.0}" \
+  --build-arg PI_VERSION="${PI_VERSION:-0.85.1}" \
   -f "$repo/Containerfile.warren-agent" \
   -t "$target" "$repo"
