@@ -13,15 +13,40 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       !github.event.pull_request.draft &&
-      github.event.pull_request.user.login == vars.AUTO_MERGE_BOT_LOGIN
+      (github.event.pull_request.user.login == github.repository_owner ||
+       (vars.AUTO_MERGE_BOT_LOGIN != '' &&
+        contains(format(',{0},', vars.AUTO_MERGE_BOT_LOGIN),
+                 format(',{0},', github.event.pull_request.user.login)))) &&
+      !contains(github.event.pull_request.labels.*.name, 'no-automerge')
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Protect control-plane changes
+        id: protected
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          if printf '%s\n' "$changed" | grep -Eq '^(.github/workflows/auto-merge\.yml|\.warren/triggers\.yaml|CODEOWNERS|AGENTS\.md)$'; then
+            echo 'hit=true' >> "$GITHUB_OUTPUT"
+            echo 'Protected control-plane change: human review required.'
+          else
+            echo 'hit=false' >> "$GITHUB_OUTPUT"
+          fi
       - name: Mint GitHub App installation token
+        if: steps.protected.outputs.hit != 'true'
         id: app-token
         uses: actions/create-github-app-token@v3.2.0
         with:
           app-id: ${{ vars.AUTO_MERGE_APP_ID }}
           private-key: ${{ secrets.AUTO_MERGE_APP_PRIVATE_KEY }}
       - name: Enable squash auto-merge
+        if: steps.protected.outputs.hit != 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
