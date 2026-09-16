@@ -27,3 +27,12 @@ jobs:
         run: |
           grep -q '^schema-version = ' .flox/env/manifest.toml
           test -s .flox/env/manifest.lock
+      - name: Build and smoke-test Warren agent image
+        run: |
+          scripts/build-warren-agent senshac-warren-agent:ci
+          docker run --rm --entrypoint sh senshac-warren-agent:ci -lc '
+            command -v pi
+            command -v gh
+            command -v git
+            command -v jq
+          '
