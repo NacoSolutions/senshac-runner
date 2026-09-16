@@ -8,7 +8,7 @@ builds, Cloudflare tooling, Bun dependencies, and media tooling; these belong
 to CI and the media runner. The agent image uses Node 24 because Pi currently
 exercises Node/Web API compatibility that Bun 1.3.13 does not fully provide.
 Warren primarily needs to inspect repositories, edit files, run lightweight checks,
-edit files, run lightweight checks, update Seeds, and prepare pull requests.
+update Seeds, and prepare pull requests.
 
 ## Runtime split
 
@@ -30,7 +30,7 @@ invoke a sibling runner or defer heavyweight validation to GitHub Actions.
 - Git and GitHub CLI
 - Node 24 runtime for Pi; Bun remains the Senshac repository/tooling runtime
 - `jq`, `yq`, and POSIX shell utilities
-- Seeds, Mulch, Canopy, Terrarium, and Jayminwest Trellis
+- Seeds, Mulch, Terrarium, and Jayminwest Trellis
 - Warren repository/run helper scripts
 
 ## Gate policy
