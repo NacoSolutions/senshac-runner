@@ -68,6 +68,7 @@ jobs:
             command -v bun
             command -v flox
             command -v gcc
+            command -v tar
             command -v unzip
             node -e "require(\"https\").get(\"https://github.com\", response => {
               if (response.statusCode < 200 || response.statusCode >= 400) process.exit(1);

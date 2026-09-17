@@ -35,6 +35,7 @@ jobs:
             command -v gh
             command -v git
             command -v jq
+            command -v tar
             test "$(command -v tr)" = /usr/local/bin/tr
             test "$(command -v terrarium)" = /usr/local/bin/terrarium
             tr --help
