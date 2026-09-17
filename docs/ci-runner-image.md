@@ -52,5 +52,23 @@ When `.flox/env/manifest.toml` or `.flox/env/manifest.lock` changes, publish a
 new image before expecting GitHub CI to use new tools. The publish workflow runs
 on main for those files and can also be started manually from GitHub Actions.
 It pushes the immutable `sha-<commit>` tag first, pulls and smoke-tests that
-registry artifact, and only then advances `latest`. The workflow summary records
-both the verified digest and the previous `latest` digest for rollback.
+registry artifact, and only then advances `latest`.
+
+## Producer/consumer handoff
+
+This repository is the **producer**. A successful publication verifies the
+registry digest and exposes the full immutable image reference in two places:
+
+- the workflow job output `image_digest`;
+- the `senshac-runner-image-digest` workflow artifact, whose
+  `runner-image-digest.txt` contains one `ghcr.io/...@sha256:...` reference.
+
+The workflow summary also prints that reference and the previous `latest`
+digest for rollback. The web repository is the **consumer**: its workflow
+should pin `runs-on`'s runner image to the artifact's digest (not `latest` or
+the `sha-<commit>` tag). Updating that consumer is intentionally a separate
+change in `senshac-web`; this repository does not edit or own the web checkout.
+
+The local Act helper defaults to the published `senshac-runner:latest` image;
+set `CI_RUNNER_IMAGE` to the exported `@sha256:` reference when reproducing a
+consumer run exactly.

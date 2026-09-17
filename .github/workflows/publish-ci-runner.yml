@@ -18,6 +18,8 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    outputs:
+      image_digest: ${{ steps.immutable.outputs.digest }}
     permissions:
       contents: read
       packages: write
@@ -91,12 +93,25 @@ jobs:
           latest="$(docker inspect --format '{{index .RepoDigests 0}}' "${image}:latest")"
           test "$latest" = "${{ steps.immutable.outputs.digest }}"
 
+      - name: Export consumer handoff
+        run: |
+          printf '%s\n' '${{ steps.immutable.outputs.digest }}' > runner-image-digest.txt
+
+      - name: Upload consumer handoff
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: senshac-runner-image-digest
+          path: runner-image-digest.txt
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Record publication
         run: |
           {
             echo "## CI runner publication"
             echo
-            echo "- Immutable: \`${{ steps.immutable.outputs.digest }}\`"
+            echo "- Immutable image (consumer pin): \`${{ steps.immutable.outputs.digest }}\`"
+            echo "- Handoff artifact: \`senshac-runner-image-digest/runner-image-digest.txt\`"
             echo "- Previous latest (rollback): \`${{ steps.rollback.outputs.digest }}\`"
             echo "- Promoted tag: \`${REGISTRY}/${IMAGE_NAME}:latest\`"
           } >> "$GITHUB_STEP_SUMMARY"
