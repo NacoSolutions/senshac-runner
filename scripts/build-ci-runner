@@ -13,6 +13,7 @@ flox containerize -d "$repo" --runtime "$runtime" --tag "$build_tag"
 cat >"$tmp/Containerfile" <<EOF
 FROM $base_image
 RUN ["/bin/mkdir", "-p", "/usr/bin"]
+RUN ["/bin/sh", "-c", "tar_path=\"\$(command -v tar)\"; test -x \"\$tar_path\"; /bin/ln -sf \"\$tar_path\" /usr/bin/tar; test -x /usr/bin/tar; /usr/bin/tar --version >/dev/null"]
 RUN ["/bin/ln", "-sf", "/bin/env", "/usr/bin/env"]
 RUN ["/bin/sh", "-c", "set -- /nix/store/*-glibc-*/lib/ld-linux-x86-64.so.2; test -e \"\$1\"; /bin/ln -s \"\${1%/*}\" /lib64"]
 RUN ["/bin/mkdir", "-p", "/usr/lib"]
