@@ -39,7 +39,9 @@ jobs:
       - name: Build CI runner image
         run: |
           image="${REGISTRY}/${IMAGE_NAME}"
+          echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Starting Flox build and runtime retagging"
           CONTAINER_RUNTIME=docker scripts/build-ci-runner "${image}:sha-${GITHUB_SHA}"
+          echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Flox build and runtime retagging complete"
 
       - name: Record current rollback digest
         id: rollback
@@ -62,8 +64,12 @@ jobs:
         run: |
           image="${REGISTRY}/${IMAGE_NAME}"
           immutable="${image}:sha-${GITHUB_SHA}"
+          echo "::group::[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Smoke-test handoff"
+          trap 'echo "::endgroup::"' EXIT
+          echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Re-pulling immutable image ${immutable}"
           docker image rm "${immutable}"
           docker pull "${immutable}"
+          echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Running activated-environment smoke test"
           # Do not override Flox's entrypoint: this verifies commands in the
           # activated environment produced by flox containerize.
           docker run --rm "${immutable}" sh -lc '
@@ -94,6 +100,7 @@ jobs:
             *) echo "Published image has no registry digest: $digest" >&2; exit 1 ;;
           esac
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Smoke test passed; consumer digest is ${digest}"
 
       - name: Promote verified image to latest
         run: |

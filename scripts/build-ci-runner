@@ -5,14 +5,41 @@ repo="$(git rev-parse --show-toplevel)"
 runtime="${CONTAINER_RUNTIME:-podman}"
 target="${1:-senshac-ci-runner:latest}"
 source_image="senshac-runner:ci-runner"
+current_group=""
+
+log() {
+  printf '[%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"
+}
+
+end_group() {
+  if [[ -n "$current_group" ]]; then
+    echo "::endgroup::"
+    current_group=""
+  fi
+}
+
+start_group() {
+  end_group
+  current_group="$1"
+  echo "::group::[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $1"
+}
+
+trap end_group EXIT
 
 # Flox accepts the bare tag and names the generated image from the project
 # name. Retag that image with the selected runtime for the requested target.
-flox containerize -d "$repo" --runtime "$runtime" --tag ci-runner
+start_group "Flox containerize"
+log "Starting Flox containerize with runtime ${runtime}"
+# Keep build output line-buffered so failures and progress are visible in CI.
+stdbuf -oL -eL flox -vv containerize -d "$repo" --runtime "$runtime" --tag ci-runner
+log "Flox containerize produced ${source_image}"
 
+start_group "Runtime retagging"
+log "Checking source image ${source_image}"
 if ! "$runtime" image inspect "$source_image" >/dev/null 2>&1; then
   echo "Flox containerize did not produce the expected source image: $source_image" >&2
   exit 1
 fi
-
+log "Retagging ${source_image} as ${target}"
 "$runtime" tag "$source_image" "$target"
+log "Published local target ${target}"
