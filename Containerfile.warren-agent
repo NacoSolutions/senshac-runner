@@ -23,7 +23,7 @@ RUN apt-get update \
     "trellis-cli@${TRELLIS_VERSION}" \
   && mkdir -p /tmp/terrarium \
   && curl -fsSL "https://github.com/RogerNavelsaker/terrarium/archive/${TERRARIUM_COMMIT}.tar.gz" -o /tmp/terrarium.tar.gz \
-  && printf '%s  %s\\n' "${TERRARIUM_SHA256}" /tmp/terrarium.tar.gz | sha256sum -c - \
+  && printf '%s  %s\n' "${TERRARIUM_SHA256}" /tmp/terrarium.tar.gz | sha256sum -c - \
   && tar -xzf /tmp/terrarium.tar.gz --strip-components=1 -C /tmp/terrarium \
   && npm install --global --omit=dev /tmp/terrarium \
   && rm -rf /tmp/terrarium /tmp/terrarium.tar.gz \
