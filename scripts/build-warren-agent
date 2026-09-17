@@ -8,5 +8,9 @@ target="${1:-senshac-warren-agent:latest}"
 exec "$runtime" build \
   --build-arg GH_VERSION="${GH_VERSION:-2.80.0}" \
   --build-arg PI_VERSION="${PI_VERSION:-0.85.1}" \
+  --build-arg SEEDS_VERSION="${SEEDS_VERSION:-0.5.12}" \
+  --build-arg MULCH_VERSION="${MULCH_VERSION:-0.10.7}" \
+  --build-arg BUN_VERSION="${BUN_VERSION:-1.3.13}" \
+  --build-arg TRELLIS_COMMIT="${TRELLIS_COMMIT:-fd3bbadf1fa92c3b15e72836689b30094f4f534a}" \
   -f "$repo/Containerfile.warren-agent" \
   -t "$target" "$repo"

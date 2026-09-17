@@ -7,6 +7,7 @@ on:
       - Containerfile.warren-agent
       - scripts/build-warren-agent
       - .github/workflows/publish-warren-agent.yml
+      - docs/warren-agent-runtime.md
   workflow_dispatch:
 
 env:
@@ -43,6 +44,9 @@ jobs:
             gh --version
             git --version
             jq --version
+            sd --version
+            ml --version
+            trellis --help
           '
 
       - name: Push immutable image
