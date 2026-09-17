@@ -20,3 +20,8 @@ This repository uses the pinned Flox tools `sd` (Seeds) and `ml` (Mulch).
 - Keep `.seeds/`, `.mulch/`, and their merge-union entries in `.gitattributes`
   under version control. Run the commands through the project Flox environment
   (`fx sd ...` / `fx ml ...`) when the host does not provide them directly.
+- On a fresh checkout, bootstrap with `sd init` and `ml init`, then create or
+  claim work with `sd create`/`sd update`; validate both stores with `sd doctor`
+  and `ml validate` before committing tracker changes.
+- Runner-image work must preserve the producer/consumer boundary: this repo
+  produces the image, while the web checkout consumes an immutable image digest.
