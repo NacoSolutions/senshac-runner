@@ -51,7 +51,10 @@ temporary checkout so Act runs against committed state, matching GitHub CI.
 When `.flox/env/manifest.toml` or `.flox/env/manifest.lock` changes, publish a
 new image before expecting GitHub CI to use new tools. The runner contract
 requires `tar` to be available on `PATH`; `actions/setup-node` uses it to
-extract the Node distribution. The publish workflow runs
+extract the Node distribution. The manifest installs Flox's `gnutar` package
+under the `tar` install ID and group, so the activated profile contributes its
+`bin/tar` executable to `PATH` (rather than relying on a post-build image
+symlink). The publish workflow runs
 on main for those files and can also be started manually from GitHub Actions.
 It pushes the immutable `sha-<commit>` tag first, pulls and smoke-tests that
 registry artifact, and only then advances `latest`.
