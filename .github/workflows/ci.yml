@@ -35,4 +35,9 @@ jobs:
             command -v gh
             command -v git
             command -v jq
+            tr --help
+            terrarium --help
+            sd --version
+            ml --version
+            trellis --help
           '
