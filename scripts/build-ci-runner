@@ -4,8 +4,10 @@ set -euo pipefail
 repo="$(git rev-parse --show-toplevel)"
 runtime="${CONTAINER_RUNTIME:-podman}"
 target="${1:-senshac-ci-runner:latest}"
+local_tag="senshac-ci-runner:local"
 
-# Keep Flox's generated entrypoint: it activates the environment before
-# dispatching commands, so the published image and local image have the same
-# runtime contract.
-exec flox containerize -d "$repo" --runtime "$runtime" --tag "$target"
+# Flox currently accepts only a simple local tag here. Keep its generated
+# image and entrypoint unchanged, then use the selected runtime for the full
+# registry target.
+flox containerize -d "$repo" --runtime "$runtime" --tag "$local_tag"
+"$runtime" tag "$local_tag" "$target"
