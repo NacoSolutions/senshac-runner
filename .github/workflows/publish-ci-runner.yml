@@ -64,14 +64,23 @@ jobs:
           immutable="${image}:sha-${GITHUB_SHA}"
           docker image rm "${immutable}"
           docker pull "${immutable}"
-          docker run --rm --entrypoint sh "${immutable}" -lc '
+          # Do not override Flox's entrypoint: this verifies commands in the
+          # activated environment produced by flox containerize.
+          docker run --rm "${immutable}" sh -lc '
+            test -n "${FLOX_ENV_PROJECT:-}"
+            for tool in tar git gh sd ml tr tl; do
+              command -v "$tool"
+            done
+            tar --version
+            git --version
+            gh --version
+            sd --help >/dev/null
+            ml --help >/dev/null
+            tr --help >/dev/null
+            tl --help >/dev/null
             command -v bun
             command -v flox
             command -v gcc
-            tar_path="$(command -v tar)"
-            test "$tar_path" = /usr/bin/tar
-            test -x "$tar_path"
-            "$tar_path" --version
             command -v unzip
             node -e "require(\"https\").get(\"https://github.com\", response => {
               if (response.statusCode < 200 || response.statusCode >= 400) process.exit(1);

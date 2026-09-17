@@ -26,12 +26,11 @@ makes CI consume the same prebuilt toolchain every time.
 dx scripts/build-ci-runner senshac-ci-runner:latest
 ```
 
-The script defaults to rootless Podman through `flox containerize`. Flox builds
-the local `senshac:ci-runner` image first, then the script adds a small POSIX
-compatibility layer so Node package shebangs using `/usr/bin/env` work inside
-GitHub CI, Act, and direct `podman run` smoke checks. It also exposes the Flox
-glibc runtime at `/lib64` so Cloudflare's prebuilt `workerd` executable can
-load inside the otherwise non-FHS image. Override the runtime when needed:
+The script defaults to rootless Podman through `flox containerize`. Flox is
+the sole image builder and supplies the image entrypoint that activates the
+environment before dispatching commands. The publication workflow smoke-tests
+the activated image for the runner's required tools. Override the runtime when
+needed:
 
 ```bash
 CONTAINER_RUNTIME=docker dx scripts/build-ci-runner ghcr.io/nacosolutions/senshac-runner:test
