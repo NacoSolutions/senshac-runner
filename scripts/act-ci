@@ -4,7 +4,7 @@ set -euo pipefail
 socket="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman/podman.sock"
 
 target_repo="${SENSHAC_WEB_REPO:-${1:-}}"
-runner_image="${CI_RUNNER_IMAGE:-ghcr.io/nacosolutions/senshac-ci-runner:latest}"
+runner_image="${CI_RUNNER_IMAGE:-ghcr.io/nacosolutions/senshac-runner:latest}"
 if [[ -z "$target_repo" ]]; then
   echo "Usage: SENSHAC_WEB_REPO=/path/to/senshac [args...] $0" >&2
   exit 2
