@@ -21,12 +21,16 @@ RUN apt-get update \
     "@os-eco/seeds-cli@${SEEDS_VERSION}" \
     "@os-eco/mulch-cli@${MULCH_VERSION}" \
     "trellis-cli@${TRELLIS_VERSION}" \
-  && mkdir -p /tmp/terrarium \
+  && mkdir -p /opt/terrarium \
   && curl -fsSL "https://github.com/RogerNavelsaker/terrarium/archive/${TERRARIUM_COMMIT}.tar.gz" -o /tmp/terrarium.tar.gz \
   && printf '%s  %s\n' "${TERRARIUM_SHA256}" /tmp/terrarium.tar.gz | sha256sum -c - \
-  && tar -xzf /tmp/terrarium.tar.gz --strip-components=1 -C /tmp/terrarium \
-  && npm install --global --omit=dev /tmp/terrarium \
-  && rm -rf /tmp/terrarium /tmp/terrarium.tar.gz \
+  && tar -xzf /tmp/terrarium.tar.gz --strip-components=1 -C /opt/terrarium \
+  && cd /opt/terrarium \
+  && npm install --omit=dev \
+  && printf '%s\n' '#!/bin/sh' 'exec /usr/local/bin/bun /opt/terrarium/src/index.ts "$@"' > /usr/local/bin/terrarium \
+  && printf '%s\n' '#!/bin/sh' 'exec /usr/local/bin/bun /opt/terrarium/src/index.ts "$@"' > /usr/local/bin/tr \
+  && chmod 755 /usr/local/bin/terrarium /usr/local/bin/tr \
+  && rm -f /tmp/terrarium.tar.gz \
   && git config --system advice.detachedHead false \
   && apt-get clean
 

@@ -43,6 +43,8 @@ jobs:
             gh --version
             git --version
             jq --version
+            test "$(command -v tr)" = /usr/local/bin/tr
+            test "$(command -v terrarium)" = /usr/local/bin/terrarium
             tr --help
             terrarium --help
             sd --version
