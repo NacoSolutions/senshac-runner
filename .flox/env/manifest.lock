@@ -62,9 +62,9 @@
       "glibc": {
         "pkg-path": "glibc"
       },
-      "gnutar": {
+      "tar": {
         "pkg-path": "gnutar",
-        "pkg-group": "gnutar"
+        "pkg-group": "tar"
       },
       "gnugrep": {
         "pkg-path": "gnugrep",
