@@ -37,7 +37,10 @@ The image pins Seeds 0.5.15, Mulch 0.10.7, Trellis CLI 1.0.1, and Bun
 `RogerNavelsaker/terrarium` source tarball at commit
 `afeec9cc0b7e6e7f4315647e4556afe42e140897`, with its SHA-256 verified during
 the image build; it is not fetched from npm because `@os-eco/terrarium-cli` is
-not published there. Keep the real Node 24 runtime for Pi unchanged.
+not published there. The source and production dependencies are retained under
+`/opt/terrarium`, and explicit Bun wrappers at `/usr/local/bin/tr` and
+`/usr/local/bin/terrarium` ensure the Terrarium `tr` takes precedence over
+coreutils. Keep the real Node 24 runtime for Pi unchanged.
 - Warren repository/run helper scripts
 
 ## Gate policy
