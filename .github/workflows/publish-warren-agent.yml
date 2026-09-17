@@ -43,6 +43,11 @@ jobs:
             gh --version
             git --version
             jq --version
+            tr --help
+            terrarium --help
+            sd --version
+            ml --version
+            trellis --help
           '
 
       - name: Push immutable image

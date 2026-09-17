@@ -30,13 +30,21 @@ invoke a sibling runner or defer heavyweight validation to GitHub Actions.
 - Git and GitHub CLI
 - Node 24 runtime for Pi; Bun remains the Senshac repository/tooling runtime
 - `jq`, `yq`, and POSIX shell utilities
-- Seeds, Mulch, Terrarium, and Jayminwest Trellis
+- Seeds (`sd`), Mulch (`ml`), Terrarium (`tr`/`terrarium`), and Jayminwest Trellis
+
+The image pins Seeds 0.5.15, Mulch 0.10.7, Trellis CLI 1.0.1, and Bun
+1.3.13 for these Bun-based CLIs. Terrarium is installed from the
+`RogerNavelsaker/terrarium` source tarball at commit
+`afeec9cc0b7e6e7f4315647e4556afe42e140897`, with its SHA-256 verified during
+the image build; it is not fetched from npm because `@os-eco/terrarium-cli` is
+not published there. Keep the real Node 24 runtime for Pi unchanged.
 - Warren repository/run helper scripts
 
 ## Gate policy
 
 - Lightweight formatting, metadata, Seeds integrity, and static checks may run
-  directly in Warren.
+  directly in Warren. The image build smoke-tests `tr --help`,
+  `terrarium --help`, `sd --version`, `ml --version`, and `trellis --help`.
 - Flox/Nix-dependent build, Cloudflare, browser, and production smoke gates
   run in `senshac-runner` or GitHub Actions.
 - Warren may open a PR only after authoritative runner/CI gates pass.
