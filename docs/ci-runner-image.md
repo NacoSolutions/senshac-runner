@@ -4,7 +4,8 @@ Seed: `senshac-50a2`
 
 The CI runner image is the shared execution surface for GitHub Actions and
 local Act runs. It is built from the project Flox environment with
-`flox containerize`, then published to:
+`flox containerize`, including GNU `tar` for actions such as
+`actions/setup-node`, then published to:
 
 ```text
 ghcr.io/nacosolutions/senshac-runner:latest
@@ -49,7 +50,9 @@ temporary checkout so Act runs against committed state, matching GitHub CI.
 ## Update Contract
 
 When `.flox/env/manifest.toml` or `.flox/env/manifest.lock` changes, publish a
-new image before expecting GitHub CI to use new tools. The publish workflow runs
+new image before expecting GitHub CI to use new tools. The runner contract
+requires `tar` to be available on `PATH`; `actions/setup-node` uses it to
+extract the Node distribution. The publish workflow runs
 on main for those files and can also be started manually from GitHub Actions.
 It pushes the immutable `sha-<commit>` tag first, pulls and smoke-tests that
 registry artifact, and only then advances `latest`.
