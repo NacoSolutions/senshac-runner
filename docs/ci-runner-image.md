@@ -28,9 +28,10 @@ dx scripts/build-ci-runner senshac-ci-runner:latest
 
 The script defaults to rootless Podman through `flox containerize`. Flox is
 the sole image builder and supplies the image entrypoint that activates the
-environment before dispatching commands. The publication workflow smoke-tests
-the activated image for the runner's required tools. Override the runtime when
-needed:
+environment before dispatching commands. The publication workflow uses Docker;
+the same script and derived-image tar copy are used for both runtimes. The
+publication workflow smoke-tests the activated image for the runner's required
+tools. Override the runtime when needed:
 
 ```bash
 CONTAINER_RUNTIME=docker dx scripts/build-ci-runner ghcr.io/nacosolutions/senshac-runner:test
@@ -88,9 +89,14 @@ extract the Node distribution. The manifest installs Flox's `gnutar`
 package, but the package's activated profile is not sufficient to guarantee
 that `tar` is on the final
 `flox containerize` image `PATH`. The build logs the activated PATH and the
-actual `/nix/store` tar candidates, then links the discovered `tar` or `gtar`
-executable into `/usr/bin/tar` in a small derived image. The publish workflow
-runs
+actual `/nix/store` tar candidates, then copies the discovered `tar` or
+`gtar` executable (following symlinks) into `/usr/bin/tar` in a small derived
+image. Copying rather than preserving a Nix-store symlink is intentional:
+Docker and rootless Podman can export the Flox source image differently, and
+Docker may otherwise lose the executable reached through that symlink. The
+build then verifies that the selected runtime resolves exactly `/usr/bin/tar`
+before retagging; invoke it once with `CONTAINER_RUNTIME=podman` and once with
+`CONTAINER_RUNTIME=docker` to compare runtimes. The publish workflow runs
 on main for those files and can also be started manually from GitHub Actions.
 It pushes the immutable `sha-<commit>` tag first, pulls and smoke-tests that
 registry artifact, and only then advances `latest`.

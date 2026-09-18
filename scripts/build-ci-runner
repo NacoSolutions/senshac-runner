@@ -45,7 +45,7 @@ trap 'rm -rf "$tmp"; end_group' EXIT
 cat >"$tmp/Containerfile" <<EOF
 FROM $source_image
 RUN ["/bin/mkdir", "-p", "/usr/bin"]
-RUN ["/bin/sh", "-c", "set -eu; tar_path=\$(command -v tar 2>/dev/null || true); if [ -z \"\$tar_path\" ]; then tar_path=\$(command -v gtar 2>/dev/null || true); fi; if [ -z \"\$tar_path\" ]; then for candidate in /nix/store/*/bin/tar /nix/store/*/bin/gtar; do if [ -x \"\$candidate\" ]; then tar_path=\"\$candidate\"; break; fi; done; fi; test -n \"\$tar_path\"; test -x \"\$tar_path\"; /bin/ln -sf \"\$tar_path\" /usr/bin/tar; /usr/bin/tar --version >/dev/null"]
+RUN ["/bin/sh", "-c", "set -eu; tar_path=\$(command -v tar 2>/dev/null || true); if [ -z \"\$tar_path\" ]; then tar_path=\$(command -v gtar 2>/dev/null || true); fi; if [ -z \"\$tar_path\" ]; then for candidate in /nix/store/*/bin/tar /nix/store/*/bin/gtar; do if [ -x \"\$candidate\" ]; then tar_path=\"\$candidate\"; break; fi; done; fi; test -n \"\$tar_path\"; test -x \"\$tar_path\"; /bin/rm -f /usr/bin/tar; /bin/cp -L \"\$tar_path\" /usr/bin/tar; /bin/chmod 0755 /usr/bin/tar; /usr/bin/tar --version >/dev/null"]
 RUN ["/bin/ln", "-sf", "/bin/env", "/usr/bin/env"]
 RUN ["/bin/sh", "-c", "set -- /nix/store/*-glibc-*/lib/ld-linux-x86-64.so.2; test -e \"\$1\"; /bin/ln -s \"\${1%/*}\" /lib64"]
 RUN ["/bin/mkdir", "-p", "/usr/lib"]
@@ -58,6 +58,11 @@ ENV NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-bundle.crt
 EOF
 "$runtime" build -f "$tmp/Containerfile" -t "$final_image" "$tmp"
+
+start_group "Verify portable tar"
+log "Verifying the derived image resolves /usr/bin/tar with ${runtime}"
+"$runtime" run --rm --entrypoint /bin/sh "$final_image" -c \
+  'set -eu; test "$(command -v tar)" = /usr/bin/tar; test -x /usr/bin/tar; /usr/bin/tar --version'
 
 start_group "Runtime retagging"
 log "Checking final image ${final_image}"
