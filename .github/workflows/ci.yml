@@ -21,6 +21,7 @@ jobs:
           test -s docs/warren-agent-runtime.md
           test -x scripts/build-ci-runner
           test -x scripts/verify-ci-runner
+          test -x scripts/verify-ci-runner-local
           test -x scripts/act-ci
           test -x scripts/build-warren-agent
           test -s Containerfile.warren-agent

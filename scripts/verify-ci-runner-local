@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="$(git rev-parse --show-toplevel)"
+image="${1:-senshac-runner:local}"
+socket="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman/podman.sock"
+
+require() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "Missing prerequisite: $1" >&2
+    exit 2
+  }
+}
+
+require podman
+require flox
+
+# The image build itself talks to Podman locally, but starting the user socket
+# here makes the resulting image immediately usable by scripts/act-ci too.
+if [[ ! -S "$socket" ]] && command -v systemctl >/dev/null 2>&1; then
+  systemctl --user start podman.socket || {
+    echo "Unable to start the rootless Podman socket: $socket" >&2
+    echo "The local image build can continue, but Act requires this socket." >&2
+  }
+fi
+if [[ -S "$socket" ]]; then
+  export DOCKER_HOST="unix://${socket}"
+  printf 'Using rootless Podman socket: %s\n' "$socket"
+else
+  printf 'Podman socket unavailable; continuing (the build and smoke test do not require it).\n'
+fi
+
+cd "$repo"
+printf 'Building local runner image: %s\n' "$image"
+CONTAINER_RUNTIME=podman scripts/build-ci-runner "$image"
+printf 'Running activated runner smoke test: %s\n' "$image"
+podman run --rm "$image" sh -s < scripts/verify-ci-runner
+printf 'Local runner image verification passed: %s\n' "$image"
