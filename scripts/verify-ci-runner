@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -eu
+
+printf 'FLOX_ENV_PROJECT=%s\n' "${FLOX_ENV_PROJECT:-}"
+printf 'PATH=%s\n' "$PATH"
+printf 'Activated tar lookup: '
+command -v tar || true
+printf 'Activated gtar lookup: '
+command -v gtar || true
+printf 'Activated tar files:\n'
+find "${FLOX_ENV_PROJECT:-/nonexistent}/.flox/run" -maxdepth 5 \( -type f -o -type l \) \( -name tar -o -name gtar \) -print 2>/dev/null || true
+
+test -n "${FLOX_ENV_PROJECT:-}"
+for tool in tar git gh sd ml tr tl; do
+  command -v "$tool"
+done
+tar_path="$(command -v tar)"
+test -x "$tar_path"
+"$tar_path" --version
+git --version
+gh --version
+sd --help >/dev/null
+ml --help >/dev/null
+tr --help >/dev/null
+tl --help >/dev/null
+command -v bun
+command -v flox
+command -v gcc
+command -v unzip
+
+node --input-type=commonjs <<'NODE'
+require("https").get("https://github.com", response => {
+  if (response.statusCode < 200 || response.statusCode >= 400) process.exit(1);
+  response.resume();
+}).on("error", () => process.exit(1));
+NODE
+
+bun --eval 'const response = await fetch("https://github.com"); if (!response.ok) process.exit(1);'

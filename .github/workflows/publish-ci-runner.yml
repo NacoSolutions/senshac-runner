@@ -9,6 +9,7 @@ on:
       - ".flox/env/manifest.lock"
       - ".github/workflows/publish-ci-runner.yml"
       - "scripts/build-ci-runner"
+      - "scripts/verify-ci-runner"
   workflow_dispatch:
 
 env:
@@ -70,37 +71,10 @@ jobs:
           docker image rm "${immutable}"
           docker pull "${immutable}"
           echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Running activated-environment smoke test"
-          # Do not override Flox's entrypoint: this verifies commands in the
-          # activated environment produced by flox containerize.
-          docker run --rm "${immutable}" sh -lc '
-            test -n "${FLOX_ENV_PROJECT:-}"
-            for tool in tar git gh sd ml tr tl; do
-              command -v "$tool"
-            done
-            tar_path="$(command -v tar)"
-            test -x "$tar_path"
-            "$tar_path" --version
-            git --version
-            gh --version
-            sd --help >/dev/null
-            ml --help >/dev/null
-            tr --help >/dev/null
-            tl --help >/dev/null
-            command -v bun
-            command -v flox
-            command -v gcc
-            command -v unzip
-            node <<'NODE'
-            require("https").get("https://github.com", response => {
-              if (response.statusCode < 200 || response.statusCode >= 400) process.exit(1);
-              response.resume();
-            }).on("error", () => process.exit(1));
-            NODE
-            bun <<'BUN'
-            const response = await fetch("https://github.com");
-            if (!response.ok) process.exit(1);
-            BUN
-          '
+          # Keep the script outside the docker command. Heredocs nested inside
+          # a single-quoted docker argument are parsed as literal input.
+          # Do not override Flox's entrypoint: this verifies activation.
+          docker run --rm "${immutable}" sh -s < scripts/verify-ci-runner
           digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${immutable}")"
           case "$digest" in
             *@sha256:*) ;;
