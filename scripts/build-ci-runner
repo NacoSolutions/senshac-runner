@@ -43,9 +43,14 @@ log "Inspecting tar candidates in the Flox image"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"; end_group' EXIT
 cat >"$tmp/Containerfile" <<EOF
-FROM $source_image
+FROM $source_image AS flox-runner
+# Keep this source pinned and static: Docker's Flox export can omit every tar
+# candidate, while the local Podman export may still contain Flox's gnutar.
+FROM docker.io/library/busybox:1.36.1@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662 AS tar-fallback
+FROM flox-runner
+COPY --from=tar-fallback /bin/busybox /tmp/static-tar
 RUN ["/bin/mkdir", "-p", "/usr/bin"]
-RUN ["/bin/sh", "-c", "set -eu; tar_path=\$(command -v tar 2>/dev/null || true); if [ -z \"\$tar_path\" ]; then tar_path=\$(command -v gtar 2>/dev/null || true); fi; if [ -z \"\$tar_path\" ]; then for candidate in /nix/store/*/bin/tar /nix/store/*/bin/gtar; do if [ -x \"\$candidate\" ]; then tar_path=\"\$candidate\"; break; fi; done; fi; test -n \"\$tar_path\"; test -x \"\$tar_path\"; /bin/rm -f /usr/bin/tar; /bin/cp -L \"\$tar_path\" /usr/bin/tar; /bin/chmod 0755 /usr/bin/tar; /usr/bin/tar --version >/dev/null"]
+RUN ["/bin/sh", "-c", "set -eu; tar_path=\$(command -v tar 2>/dev/null || true); if [ -z \"\$tar_path\" ]; then tar_path=\$(command -v gtar 2>/dev/null || true); fi; if [ -z \"\$tar_path\" ]; then for candidate in /nix/store/*/bin/tar /nix/store/*/bin/gtar; do if [ -x \"\$candidate\" ]; then tar_path=\"\$candidate\"; break; fi; done; fi; /bin/rm -f /usr/bin/tar; if [ -n \"\$tar_path\" ] && [ -x \"\$tar_path\" ]; then /bin/cp -L \"\$tar_path\" /usr/bin/tar; echo \"Using Flox tar: \$tar_path\"; else /bin/cp /tmp/static-tar /usr/bin/tar; echo \"Using pinned static BusyBox tar fallback\"; fi; /bin/chmod 0755 /usr/bin/tar; /usr/bin/tar --version >/dev/null"]
 RUN ["/bin/ln", "-sf", "/bin/env", "/usr/bin/env"]
 RUN ["/bin/sh", "-c", "set -- /nix/store/*-glibc-*/lib/ld-linux-x86-64.so.2; test -e \"\$1\"; /bin/ln -s \"\${1%/*}\" /lib64"]
 RUN ["/bin/mkdir", "-p", "/usr/lib"]

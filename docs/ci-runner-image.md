@@ -92,11 +92,15 @@ that `tar` is on the final
 actual `/nix/store` tar candidates, then copies the discovered `tar` or
 `gtar` executable (following symlinks) into `/usr/bin/tar` in a small derived
 image. Copying rather than preserving a Nix-store symlink is intentional:
-Docker and rootless Podman can export the Flox source image differently, and
-Docker may otherwise lose the executable reached through that symlink. The
-build then verifies that the selected runtime resolves exactly `/usr/bin/tar`
-before retagging; invoke it once with `CONTAINER_RUNTIME=podman` and once with
-`CONTAINER_RUNTIME=docker` to compare runtimes. The publish workflow runs
+Docker and rootless Podman can export the Flox source image differently. If no
+Flox candidate exists (as in Docker workflow 35328646173), the derived image
+instead copies `/bin/busybox` from a pinned multi-stage BusyBox source and uses
+its `tar` applet as a static fallback. The build then verifies that the
+selected runtime resolves exactly `/usr/bin/tar` before retagging; invoke it
+once with `CONTAINER_RUNTIME=podman` and once with `CONTAINER_RUNTIME=docker`
+to compare runtimes. Building the fallback requires network access to fetch
+the pinned BusyBox image on a cold cache (or a pre-populated container-image
+cache). The publish workflow runs
 on main for those files and can also be started manually from GitHub Actions.
 It pushes the immutable `sha-<commit>` tag first, pulls and smoke-tests that
 registry artifact, and only then advances `latest`.
