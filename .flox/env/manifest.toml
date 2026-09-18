@@ -30,9 +30,10 @@ gnugrep.pkg-group = "gnugrep"
 gcc.pkg-path = "gcc"
 gcc.pkg-group = "gcc"
 glibc.pkg-path = "glibc"
-# Alias the GNU tar package as tar so Flox activation exposes its bin/tar output.
-tar.pkg-path = "gnutar"
-tar.pkg-group = "tar"
+# Install GNU tar under its actual Flox package name; containerize exposure is
+# verified and completed in scripts/build-ci-runner.
+gnutar.pkg-path = "gnutar"
+gnutar.pkg-group = "gnutar"
 gh.pkg-path = "gh"
 gh.pkg-group = "gh"
 git.pkg-path = "git"
