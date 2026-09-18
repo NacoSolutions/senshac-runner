@@ -36,6 +36,30 @@ needed:
 CONTAINER_RUNTIME=docker dx scripts/build-ci-runner ghcr.io/nacosolutions/senshac-runner:test
 ```
 
+## Local no-push verification
+
+For the fast, registry-free build and smoke test, install Flox and rootless
+Podman, then run:
+
+```bash
+scripts/verify-ci-runner-local
+```
+
+The script builds `senshac-runner:local` with `CONTAINER_RUNTIME=podman` and
+runs `scripts/verify-ci-runner` against that image. It does not log in to a
+registry or push anything. An optional first argument supplies another local
+image tag:
+
+```bash
+scripts/verify-ci-runner-local senshac-runner:debug
+```
+
+The script attempts to start the user Podman socket with
+`systemctl --user start podman.socket` and exports `DOCKER_HOST` when the
+socket is available. The socket is not required by the local build or smoke
+test, but it is required by Act. Rootless Podman, Flox, and a Git worktree are
+prerequisites; the Flox environment must be able to resolve its packages.
+
 ## Local CI
 
 ```bash
@@ -43,8 +67,17 @@ dx bun run test:workflow:ci
 ```
 
 `scripts/act-ci` maps `ubuntu-latest` to the same CI runner image and uses the
-current user's rootless Podman socket. It clones the current Git commit into a
-temporary checkout so Act runs against committed state, matching GitHub CI.
+current user's rootless Podman socket. After local verification, a committed
+web checkout can be exercised without GHCR credentials using:
+
+```bash
+CI_RUNNER_IMAGE=senshac-runner:local scripts/act-ci /path/to/senshac-web
+```
+
+Act must be installed separately. The helper clones the current Git commit
+into a temporary checkout so Act runs against committed state, matching
+GitHub CI. This Act path still runs the web workflow and may download action
+images; it is not part of the no-push image smoke test.
 
 ## Update Contract
 
