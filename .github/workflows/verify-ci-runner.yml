@@ -1,0 +1,37 @@
+name: Verify CI Runner Container
+
+on:
+  pull_request:
+    paths:
+      - '.flox/env/**'
+      - 'scripts/build-ci-runner'
+      - 'scripts/check-flox-lock'
+      - 'scripts/smoke-ci-runner'
+      - 'scripts/verify-ci-runner*'
+      - 'tests/test_runner_contract.py'
+      - '.github/workflows/verify-ci-runner.yml'
+      - '.github/workflows/publish-ci-runner.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: flox/install-flox-action@v2.5.3
+        with:
+          version: '1.16.0'
+      - name: Validate lock and regression tests
+        run: |
+          scripts/check-flox-lock
+          python3 -m unittest discover -s tests -v
+      - name: Build and verify local Docker image
+        env:
+          CONTAINER_RUNTIME: docker
+        run: |
+          scripts/build-ci-runner senshac-runner:pr-check
+          scripts/smoke-ci-runner senshac-runner:pr-check

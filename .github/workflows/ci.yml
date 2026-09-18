@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate runner contract
         run: |
-          bash -n scripts/*
+          for script in scripts/*; do bash -n "$script"; done
           test -s AGENTS.md
           test -s docs/ci-runner-image.md
           test -s docs/warren-agent-runtime.md
@@ -27,8 +27,8 @@ jobs:
           test -s Containerfile.warren-agent
       - name: Validate Flox manifest
         run: |
-          grep -q '^schema-version = ' .flox/env/manifest.toml
-          test -s .flox/env/manifest.lock
+          scripts/check-flox-lock
+          python3 -m unittest discover -s tests -v
       - name: Build and smoke-test Warren agent image
         run: |
           CONTAINER_RUNTIME=docker scripts/build-warren-agent senshac-warren-agent:ci

@@ -62,13 +62,16 @@
       "glibc": {
         "pkg-path": "glibc"
       },
+      "gnugrep": {
+        "pkg-path": "gnugrep",
+        "pkg-group": "gnugrep"
+      },
       "gnutar": {
         "pkg-path": "gnutar",
         "pkg-group": "gnutar"
       },
-      "gnugrep": {
-        "pkg-path": "gnugrep",
-        "pkg-group": "gnugrep"
+      "gzip": {
+        "pkg-path": "gzip"
       },
       "jq": {
         "pkg-path": "jq",
@@ -521,6 +524,38 @@
       "priority": 5
     },
     {
+      "attr_path": "gnutar",
+      "broken": false,
+      "derivation": "/nix/store/9fbpq0f3pcidx72hyqymfmvjl913rnqi-gnutar-1.35.drv",
+      "description": "GNU implementation of the `tar` archiver",
+      "install_id": "gnutar",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b1b875982b17dabde9b4a37f3e229e74913e6db3",
+      "name": "gnutar-1.35",
+      "pname": "gnutar",
+      "rev": "b1b875982b17dabde9b4a37f3e229e74913e6db3",
+      "rev_count": 1074753,
+      "rev_date": "2026-09-16T08:07:56Z",
+      "scrape_date": "2026-09-17T06:22:04.247048Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.35",
+      "outputs_to_install": [
+        "out",
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "info": "/nix/store/xacvjxf0f5rsv0zzm4vnpx76k082w78m-gnutar-1.35-info",
+        "out": "/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35"
+      },
+      "system": "x86_64-linux",
+      "group": "gnutar",
+      "priority": 5
+    },
+    {
       "attr_path": "jq",
       "broken": false,
       "derivation": "/nix/store/pq80zlnpxhzi25ninrrjjl0y1sd90hzk-jq-1.8.1.drv",
@@ -732,9 +767,9 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:47:04.093937Z",
       "stabilities": [
-        "stable",
         "staging",
-        "unstable"
+        "unstable",
+        "stable"
       ],
       "unfree": false,
       "version": "3.123",
@@ -773,9 +808,9 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:47:05.468459Z",
       "stabilities": [
-        "stable",
         "staging",
-        "unstable"
+        "unstable",
+        "stable"
       ],
       "unfree": false,
       "version": "4.10.0",
@@ -809,9 +844,9 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:47:06.074063Z",
       "stabilities": [
-        "stable",
         "staging",
-        "unstable"
+        "unstable",
+        "stable"
       ],
       "unfree": false,
       "version": "2.42-61",
@@ -837,6 +872,46 @@
       "priority": 5
     },
     {
+      "attr_path": "gzip",
+      "broken": false,
+      "derivation": "/nix/store/6a8p8kb4charqds4z1zf6ka1gbj71p1n-gzip-1.14.drv",
+      "description": "GNU zip compression program",
+      "install_id": "gzip",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=567a49d1913ce81ac6e9582e3553dd90a955875f",
+      "name": "gzip-1.14",
+      "pname": "gzip",
+      "rev": "567a49d1913ce81ac6e9582e3553dd90a955875f",
+      "rev_count": 1017464,
+      "rev_date": "2026-06-16T02:33:49Z",
+      "scrape_date": "2026-06-17T04:47:07.233054Z",
+      "stabilities": [
+        "staging",
+        "unstable",
+        "stable"
+      ],
+      "unfree": false,
+      "version": "1.14",
+      "outputs_to_install": [
+        "man",
+        "man",
+        "out",
+        "out",
+        "out",
+        "out",
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "info": "/nix/store/rxpgmmbxm5s2cg2rdd4hg14xvbjvy7b6-gzip-1.14-info",
+        "man": "/nix/store/hi5a6p82c2z8l7cm91bj05qlp35kjm5k-gzip-1.14-man",
+        "out": "/nix/store/ndpbjk6jhw0da5h272dqqnyxa35a9gmx-gzip-1.14"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
       "attr_path": "nodejs_24",
       "broken": false,
       "derivation": "/nix/store/f8i8jydaqs0ngxm97c091zna2mnjb43f-nodejs-24.15.0.drv",
@@ -851,13 +926,14 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:47:47.934763Z",
       "stabilities": [
-        "stable",
         "staging",
-        "unstable"
+        "unstable",
+        "stable"
       ],
       "unfree": false,
       "version": "24.15.0",
       "outputs_to_install": [
+        "out",
         "out",
         "out"
       ],
@@ -883,9 +959,9 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:50:45.433339Z",
       "stabilities": [
-        "stable",
         "staging",
-        "unstable"
+        "unstable",
+        "stable"
       ],
       "unfree": false,
       "version": "6.0",

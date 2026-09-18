@@ -30,9 +30,16 @@ trap end_group EXIT
 # Flox accepts the bare tag and names the generated image from the project
 # name. Retag that image with the selected runtime for the requested target.
 start_group "Flox containerize"
+"$repo/scripts/check-flox-lock"
+flox --version
+lock_before="$(sha256sum "$repo/.flox/env/manifest.lock")"
 log "Starting Flox containerize with runtime ${runtime}"
 # Keep build output line-buffered so failures and progress are visible in CI.
 stdbuf -oL -eL flox -vv containerize -d "$repo" --runtime "$runtime" --tag ci-runner
+if [[ "$(sha256sum "$repo/.flox/env/manifest.lock")" != "$lock_before" ]]; then
+  echo 'Flox changed the lockfile during construction; commit the reconciled lock and rebuild' >&2
+  exit 1
+fi
 log "Flox containerize produced ${source_image}"
 
 start_group "Expose tar in final image"

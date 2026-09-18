@@ -67,6 +67,7 @@ zellij.pkg-group = "zellij"
 cacert.pkg-path = "cacert"
 nodejs_24.pkg-path = "nodejs_24"
 unzip.pkg-path = "unzip"
+gzip.pkg-path = "gzip"
 
 [vars]
 NODE_ENV = "development"

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+runtime="${CONTAINER_RUNTIME:-podman}"
+image="${1:?Usage: scripts/smoke-ci-runner IMAGE}"
+log="$(mktemp)"
+trap 'rm -f "$log"' EXIT
+
+# File arguments survive the Flox activation handoff, including nested heredocs.
+# Exercise the image's own entrypoint for both probes and the real checks.
+run=("$runtime" run --rm --pull=never -e QUIET=1
+  --volume "$repo/scripts:/runner-check:ro"
+  "$image" sh /runner-check/verify-ci-runner)
+
+printf 'Checking smoke execution and failure propagation: %s\n' "$image"
+status=0
+"${run[@]}" --probe-failure >"$log" 2>&1 || status=$?
+cat "$log"
+if [[ "$status" != 42 ]] || ! grep -qx 'SENSHAC_SMOKE_PROBE_EXECUTED' "$log"; then
+  echo "Smoke failure probe expected marker and exit 42; received exit $status" >&2
+  exit 1
+fi
+
+printf 'Running activated runner checks: %s\n' "$image"
+"${run[@]}" | tee "$log"
+grep -qx 'SENSHAC_RUNNER_SMOKE_OK' "$log" || {
+  echo 'Smoke script completion marker missing' >&2
+  exit 1
+}

@@ -55,6 +55,14 @@ image tag:
 scripts/verify-ci-runner-local senshac-runner:debug
 ```
 
+For an already-built image, run `scripts/smoke-ci-runner IMAGE` (or set
+`CONTAINER_RUNTIME=docker`). The helper mounts the verification script
+read-only and runs it by file path through Flox's image entrypoint. It first
+requires a deliberate exit-42 probe, then requires the successful check's
+completion marker. This verifies both execution and failure propagation.
+The standalone activation contract is `FLOX_ENV/bin` on `PATH`; the host
+project path and host Flox CLI belong to the build environment.
+
 The script attempts to start the user Podman socket with
 `systemctl --user start podman.socket` and exports `DOCKER_HOST` when the
 socket is available. The socket is not required by the local build or smoke
@@ -85,21 +93,40 @@ images; it is not part of the no-push image smoke test.
 When `.flox/env/manifest.toml` or `.flox/env/manifest.lock` changes, publish a
 new image before expecting GitHub CI to use new tools. The runner contract
 requires `tar` to be available on `PATH`; `actions/setup-node` uses it to
-extract the Node distribution. The manifest installs Flox's `gnutar`
-package, but the package's activated profile is not sufficient to guarantee
-that `tar` is on the final
-`flox containerize` image `PATH`. The build logs the activated PATH and the
+extract the Node distribution. The manifest installs Flox's `gnutar` and
+`gzip` packages, and the smoke test round-trips a gzip-compressed archive
+with `--strip-components=1`.
+
+Use the Flox CLI to reconcile package changes and commit both manifest and
+lockfile. `scripts/check-flox-lock` checks manifest equality and resolved
+package outputs for each requested system before image construction.
+A manifest declaration alone is insufficient: the original missing-tar
+failure came from an unresolved `gnutar` entry in the committed lockfile.
+Local Flox repaired that entry automatically, making the earlier local/CI
+comparison use different inputs. Runtime differences remain a separate
+verification question.
+
+The build logs the image PATH and the
 actual `/nix/store` tar candidates, then copies the discovered `tar` or
 `gtar` executable (following symlinks) into `/usr/bin/tar` in a small derived
-image. Copying rather than preserving a Nix-store symlink is intentional:
-Docker and rootless Podman can export the Flox source image differently, and
-Docker may otherwise lose the executable reached through that symlink. The
-build then verifies that the selected runtime resolves exactly `/usr/bin/tar`
+image for pre-activation Actions tooling. The build then verifies that the
+selected runtime resolves exactly `/usr/bin/tar`
 before retagging; invoke it once with `CONTAINER_RUNTIME=podman` and once with
 `CONTAINER_RUNTIME=docker` to compare runtimes. The publish workflow runs
 on main for those files and can also be started manually from GitHub Actions.
-It pushes the immutable `sha-<commit>` tag first, pulls and smoke-tests that
-registry artifact, and only then advances `latest`.
+PR verification and publication pin Flox 1.16.0. The read-only PR workflow
+builds and smoke-tests a local Docker image, keeping registry publication on
+main. Publication verifies the local image, pushes the immutable
+`sha-<commit>` tag, pulls and smoke-tests that registry artifact, and only
+then advances `latest`.
+
+Fast regression gates (Python 3.11+ and Bash):
+
+```bash
+scripts/check-flox-lock
+python3 -m unittest discover -s tests -v
+for script in scripts/*; do bash -n "$script"; done
+```
 
 ## Producer/consumer handoff
 
