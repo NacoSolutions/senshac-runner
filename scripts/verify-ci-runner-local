@@ -34,5 +34,5 @@ cd "$repo"
 printf 'Building local runner image: %s\n' "$image"
 CONTAINER_RUNTIME=podman scripts/build-ci-runner "$image"
 printf 'Running activated runner smoke test: %s\n' "$image"
-podman run --rm "$image" sh -s < scripts/verify-ci-runner
+CONTAINER_RUNTIME=podman scripts/smoke-ci-runner "$image"
 printf 'Local runner image verification passed: %s\n' "$image"
