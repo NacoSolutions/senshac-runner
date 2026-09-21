@@ -6,7 +6,18 @@ It does not own the Astro application, Tina content, or media processing.
 
 The live web repository remains the checkout supplied to the runner. Validate
 runner changes against a clean web checkout before changing image tags or
-workflow ownership.
+workflow ownership. This repository also owns Bun-based tooling used by the
+container images and CI runner builds.
+
+## Bounded Warren work
+
+Use [Bounded Warren Task](.agents/skills/bounded-warren-task/SKILL.md) for
+focused autonomous changes. Apply positive phrasing, specific instructions,
+defense in depth, gentle coding, direct execution, and token economy. Inspect
+the smallest relevant surface, preserve adjacent behavior, and keep edits
+limited to the named objective and files. Use repository tools and local
+conventions, run a focused quality gate, and commit the completed change;
+Warren delivers the branch and pull request.
 
 ## Seeds and Mulch
 
