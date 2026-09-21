@@ -19,6 +19,19 @@ limited to the named objective and files. Use repository tools and local
 conventions, run a focused quality gate, and commit the completed change;
 Warren delivers the branch and pull request.
 
+## Curated skills
+
+Use the skill matching the work before editing:
+
+| Skill | When to use |
+| --- | --- |
+| [Senshac agent principles](.agents/skills/senshac-agent-principles/SKILL.md) | Every focused change; apply direct execution, specificity, positive phrasing, defense in depth, gentle coding, and token economy. |
+| [Bounded Warren Task](.agents/skills/bounded-warren-task/SKILL.md) | Focused autonomous changes with a bounded objective and stopping point. |
+| [Git workflow](.agents/skills/git-workflow/SKILL.md) | Reviewing, committing, or reporting repository changes. |
+| [Managing environments](.agents/skills/managing-environments/SKILL.md) | Working with Flox, Podman, Act, runner images, or Warren configuration. |
+| [Dependency hygiene](.agents/skills/dependency-hygiene/SKILL.md) | Changing or auditing manifests, lock files, container inputs, or tool versions. |
+| [Verification before completion](.agents/skills/verification-before-completion/SKILL.md) | Running focused checks and confirming the final diff before commit and handoff. |
+
 ## Seeds and Mulch
 
 This repository uses the pinned Flox tools `sd` (Seeds) and `ml` (Mulch).
