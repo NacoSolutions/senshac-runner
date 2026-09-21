@@ -1,6 +1,6 @@
 # Senshac Runner
 
-This is the focused CI and local-runner repository. It owns Flox
+This repository's role is Bun tooling, container images, and CI runner builds. It is the focused CI and local-runner repository. It owns Flox
 containerization, rootless Podman/Act execution, and runner image publishing.
 It does not own the Astro application, Tina content, or media processing.
 
@@ -25,3 +25,7 @@ This repository uses the pinned Flox tools `sd` (Seeds) and `ml` (Mulch).
   and `ml validate` before committing tracker changes.
 - Runner-image work must preserve the producer/consumer boundary: this repo
   produces the image, while the web checkout consumes an immutable image digest.
+
+## Bounded Warren work
+
+Use [the Bounded Warren Task skill](.agents/skills/bounded-warren-task/SKILL.md) for focused changes. State the desired outcome with positive, specific instructions; use defense in depth through repository guidance and a bounded quality gate; make gentle, direct edits that preserve adjacent behavior; and spend tokens economically by inspecting only the smallest relevant surface. Keep work within the named objective and files, then commit and report the files, checks, commit, and follow-up.
