@@ -25,3 +25,9 @@ This repository uses the pinned Flox tools `sd` (Seeds) and `ml` (Mulch).
   and `ml validate` before committing tracker changes.
 - Runner-image work must preserve the producer/consumer boundary: this repo
   produces the image, while the web checkout consumes an immutable image digest.
+
+## Autonomous-agent guidance
+
+For focused autonomous changes, follow `.agents/skills/bounded-warren-task/SKILL.md`.
+Write positive, specific instructions with a clear desired outcome; apply
+defense-in-depth and gentle coding; execute directly; and conserve tokens.
