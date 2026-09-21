@@ -9,7 +9,12 @@ runner changes against a clean web checkout before changing image tags or
 workflow ownership. This repository also owns Bun-based tooling used by the
 container images and CI runner builds.
 
-## Bounded Warren work
+## Agent guidance
+
+Apply [Senshac Agent Principles](.agents/skills/senshac-agent-principles/SKILL.md)
+to every focused change. The principles are direct execution, instruction
+specificity, positive phrasing, defense in depth, gentle coding, and token
+economy.
 
 Use [Bounded Warren Task](.agents/skills/bounded-warren-task/SKILL.md) for
 focused autonomous changes. Apply positive phrasing, specific instructions,
