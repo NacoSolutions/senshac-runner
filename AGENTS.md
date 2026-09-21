@@ -24,6 +24,17 @@ limited to the named objective and files. Use repository tools and local
 conventions, run a focused quality gate, and commit the completed change;
 Warren delivers the branch and pull request.
 
+Use these focused role skills for their corresponding work:
+
+- [Git Workflow](.agents/skills/git-workflow/SKILL.md) for scoped diffs, commits,
+  and delivery checks.
+- [Managing Environments](.agents/skills/managing-environments/SKILL.md) for
+  Flox, rootless Podman, Act, and producer/consumer validation.
+- [Dependency Hygiene](.agents/skills/dependency-hygiene/SKILL.md) for Flox
+  manifest, lock, and runner dependency checks.
+- [Verification Before Completion](.agents/skills/verification-before-completion/SKILL.md)
+  for bounded documentation/configuration validation and final acceptance.
+
 ## Seeds and Mulch
 
 This repository uses the pinned Flox tools `sd` (Seeds) and `ml` (Mulch).
