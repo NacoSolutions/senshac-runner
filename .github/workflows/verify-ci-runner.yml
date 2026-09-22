@@ -9,6 +9,10 @@ on:
       - 'scripts/smoke-ci-runner'
       - 'scripts/verify-ci-runner*'
       - 'tests/test_runner_contract.py'
+      - 'tests/test_flake_contract.py'
+      - 'flake.nix'
+      - 'docs/modular-oci-environment.md'
+      - 'scripts/check-oci-flake'
       - '.github/workflows/verify-ci-runner.yml'
       - '.github/workflows/publish-ci-runner.yml'
   workflow_dispatch:
@@ -29,6 +33,7 @@ jobs:
         run: |
           scripts/check-flox-lock
           python3 -m unittest discover -s tests -v
+          scripts/check-oci-flake
       - name: Build and verify local Docker image
         env:
           CONTAINER_RUNTIME: docker
