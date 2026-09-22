@@ -52,3 +52,12 @@ This repository uses the pinned Flox tools `sd` (Seeds) and `ml` (Mulch).
   and `ml validate` before committing tracker changes.
 - Runner-image work must preserve the producer/consumer boundary: this repo
   produces the image, while the web checkout consumes an immutable image digest.
+
+## Portable rules and CLI skills
+
+Load `.agents/rules/` for Caveman ultra, direct execution, positive phrasing,
+defense in depth, gentle coding, token economy, and llm-shorthand. Load
+`instruction-specificity.md` when authoring agent guidance. Use the local
+`seeds-cli`, `mulch-cli`, `warren-operations`, and
+`verification-before-completion` skills for tracker, expertise, Warren, and
+completion work. Load role-specific skills for the implementation surface.
