@@ -30,9 +30,9 @@ explicitly enabled (this also works when it is not enabled in global Nix
 configuration):
 
 ```bash
-nix --extra-experimental-features nix-command flake check --no-write-lock-file
-nix --extra-experimental-features nix-command build .#ciTools
-nix --extra-experimental-features nix-command build .#ociImage
+nix --extra-experimental-features 'nix-command flakes' flake check --no-write-lock-file
+nix --extra-experimental-features 'nix-command flakes' build --no-write-lock-file .#ciTools
+nix --extra-experimental-features 'nix-command flakes' build --no-write-lock-file .#ociImage
 ```
 
 The OCI output is a tarball suitable for `podman load` or `docker load`; it is

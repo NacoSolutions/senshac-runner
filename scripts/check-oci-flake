@@ -10,8 +10,8 @@ if ! command -v nix >/dev/null 2>&1; then
 fi
 
 nix --extra-experimental-features 'nix-command flakes' flake check --no-write-lock-file
-nix --extra-experimental-features 'nix-command flakes' eval --raw .#packages.x86_64-linux.ciTools.name | grep -Fx senshac-ci-tools
-nix --extra-experimental-features 'nix-command flakes' eval --raw .#packages.x86_64-linux.ociImage.name | grep -Fx senshac-runner-oci
+nix --extra-experimental-features 'nix-command flakes' eval --no-write-lock-file --raw .#packages.x86_64-linux.ciTools.name | grep -Fx senshac-ci-tools
+nix --extra-experimental-features 'nix-command flakes' eval --no-write-lock-file --raw .#packages.x86_64-linux.ociImage.name | grep -Fx senshac-runner-oci
 metadata_link="$(mktemp -u)"
 trap 'rm -f "$metadata_link"' EXIT
 nix --extra-experimental-features 'nix-command flakes' build --no-write-lock-file --out-link "$metadata_link" .#checks.x86_64-linux.oci-closure-metadata
