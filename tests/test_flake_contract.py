@@ -19,8 +19,8 @@ class FlakeContractTests(unittest.TestCase):
         self.assertNotIn("FROM ", FLAKE)
         self.assertNotIn("docker build", FLAKE)
 
-    def test_oci_validation_enables_nix_command(self):
-        flag = "nix --extra-experimental-features nix-command"
+    def test_oci_validation_enables_nix_command_and_flakes(self):
+        flag = "nix --extra-experimental-features 'nix-command flakes'"
         self.assertEqual(OCI_CHECK_SCRIPT.count(flag), 4)
         self.assertIn(f"{flag} flake check", OCI_CHECK_SCRIPT)
         self.assertIn(f"{flag} eval", OCI_CHECK_SCRIPT)
