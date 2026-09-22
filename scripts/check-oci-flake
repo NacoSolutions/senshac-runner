@@ -9,12 +9,12 @@ if ! command -v nix >/dev/null 2>&1; then
   exit 2
 fi
 
-nix flake check --no-write-lock-file
-nix eval --raw .#packages.x86_64-linux.ciTools.name | grep -Fx senshac-ci-tools
-nix eval --raw .#packages.x86_64-linux.ociImage.name | grep -Fx senshac-runner-oci
+nix --extra-experimental-features nix-command flake check --no-write-lock-file
+nix --extra-experimental-features nix-command eval --raw .#packages.x86_64-linux.ciTools.name | grep -Fx senshac-ci-tools
+nix --extra-experimental-features nix-command eval --raw .#packages.x86_64-linux.ociImage.name | grep -Fx senshac-runner-oci
 metadata_link="$(mktemp -u)"
 trap 'rm -f "$metadata_link"' EXIT
-nix build --no-write-lock-file --out-link "$metadata_link" .#checks.x86_64-linux.oci-closure-metadata
+nix --extra-experimental-features nix-command build --no-write-lock-file --out-link "$metadata_link" .#checks.x86_64-linux.oci-closure-metadata
 metadata="$(<"$metadata_link/metadata")"
 grep -Fqx 'base_image=none' <<<"$metadata"
 grep -F 'selected_tools=' <<<"$metadata" >/dev/null
