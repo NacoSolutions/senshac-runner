@@ -25,12 +25,14 @@ stay in Flox and are not copied into this image.
 
 ## Evaluate and inspect
 
-With Nix flakes enabled:
+With Nix flakes enabled, run the commands with the `nix-command` feature
+explicitly enabled (this also works when it is not enabled in global Nix
+configuration):
 
 ```bash
-nix flake check --no-write-lock-file
-nix build .#ciTools
-nix build .#ociImage
+nix --extra-experimental-features nix-command flake check --no-write-lock-file
+nix --extra-experimental-features nix-command build .#ciTools
+nix --extra-experimental-features nix-command build .#ociImage
 ```
 
 The OCI output is a tarball suitable for `podman load` or `docker load`; it is
