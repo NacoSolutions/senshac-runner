@@ -26,6 +26,16 @@ class FlakeContractTests(unittest.TestCase):
         self.assertIn(f"{flag} eval", OCI_CHECK_SCRIPT)
         self.assertIn(f"{flag} build", OCI_CHECK_SCRIPT)
 
+    def test_oci_validation_does_not_write_flake_lock(self):
+        operations = ("flake check", "eval", "build")
+        for operation in operations:
+            with self.subTest(operation=operation):
+                self.assertIn(
+                    f"{operation} --no-write-lock-file",
+                    OCI_CHECK_SCRIPT,
+                )
+        self.assertEqual(OCI_CHECK_SCRIPT.count("--no-write-lock-file"), 4)
+
     def test_developer_only_tools_are_not_in_selected_closure(self):
         selected = FLAKE.split("paths = with pkgs; [", 1)[1].split("            ];", 1)[0]
         selected_tools = set(selected.split())
