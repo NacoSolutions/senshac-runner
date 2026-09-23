@@ -4,10 +4,13 @@ on:
   pull_request:
     paths:
       - '.flox/env/**'
+      - '.flox/ci/**'
       - 'scripts/build-ci-runner'
+      - 'scripts/build-minimal-flox'
       - 'scripts/check-flox-lock'
       - 'scripts/smoke-ci-runner'
       - 'scripts/verify-ci-runner*'
+      - 'scripts/verify-minimal-flox'
       - 'scripts/report-ci-image-size'
       - 'scripts/verify-nix-base'
       - 'tests/test_runner_contract.py'
@@ -41,12 +44,14 @@ jobs:
           python3 -m unittest discover -s tests -v
           scripts/check-oci-flake
           nix --extra-experimental-features 'nix-command flakes' build --no-write-lock-file --out-link "$RUNNER_TEMP/oci-image" .#ociImage
-      - name: Build and verify local Docker image
+      - name: Build and verify local Docker images
         env:
           CONTAINER_RUNTIME: docker
         run: |
           scripts/build-ci-runner senshac-runner:pr-check
           scripts/smoke-ci-runner senshac-runner:pr-check
+          scripts/build-minimal-flox senshac-runner:minimal-flox-pr
+          scripts/verify-minimal-flox senshac-runner:minimal-flox-pr
       - name: Load and smoke-test Nix OCI canary
         env:
           CONTAINER_RUNTIME: docker
@@ -57,4 +62,4 @@ jobs:
       - name: Report image measurements
         env:
           CONTAINER_RUNTIME: docker
-        run: scripts/report-ci-image-size "$RUNNER_TEMP/oci-image" senshac-runner:pr-check
+        run: scripts/report-ci-image-size "$RUNNER_TEMP/oci-image" senshac-runner:pr-check senshac-runner:minimal-flox-pr

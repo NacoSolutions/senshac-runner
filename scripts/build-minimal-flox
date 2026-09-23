@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="$(git rev-parse --show-toplevel)"
+runtime="${CONTAINER_RUNTIME:-podman}"
+target="${1:-senshac-runner:minimal-flox}"
+environment="$repo/.flox/ci"
+source_image="senshac-runner-minimal:minimal-ci"
+
+"$repo/scripts/check-flox-lock" "$environment"
+lock_before="$(sha256sum "$environment/manifest.lock")"
+# Flox containerize consumes the conventional project/.flox/env location. Stage
+# the separately locked comparison manifest without touching the full project.
+stage="$(mktemp -d)"
+trap 'rm -rf "$stage"' EXIT
+mkdir -p "$stage/.flox/env"
+cp "$environment/manifest.toml" "$environment/manifest.lock" "$stage/.flox/env/"
+printf '{"name":"senshac-runner-minimal","version":1}\n' > "$stage/.flox/env.json"
+flox -vv containerize -d "$stage" --runtime "$runtime" --tag minimal-ci
+[[ "$(sha256sum "$environment/manifest.lock")" == "$lock_before" ]] || {
+  echo 'Flox changed the minimal lockfile during containerize' >&2
+  exit 1
+}
+"$runtime" image inspect "$source_image" >/dev/null
+"$runtime" tag "$source_image" "$target"
+printf 'Built minimal Flox image %s\n' "$target"

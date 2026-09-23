@@ -3,8 +3,9 @@
 Seed: `senshac-workspace-oci-ci`
 
 This is the first, additive step toward a modular runner environment. The
-existing `.flox/env/manifest.toml` remains the published runner contract. The
-repo-local `flake.nix` provides a separately testable Nix closure and does not
+existing `.flox/env/manifest.toml` remains the full published runner contract.
+The dedicated `.flox/ci/manifest.toml` provides the minimal Flox comparison
+contract, and the repo-local `flake.nix` provides a separately testable Nix closure and does not
 replace Flox containerization yet.
 
 ## Responsibilities
@@ -24,6 +25,20 @@ Bun, Node.js, and CA certificates. The image also contains the tiny
 binary or the legacy environment. Developer-only tools (Act, formatters,
 linters, Seeds/Mulch/Trellis, Cloudflare tooling, and interactive utilities)
 stay in Flox and are not copied into this image.
+
+## Minimal Flox comparison
+
+The minimal Flox image uses only the shared CI tools in `.flox/ci` and keeps
+its lock separate from the full developer environment. Build and verify it
+without changing the published image with:
+
+```bash
+CONTAINER_RUNTIME=docker scripts/build-minimal-flox senshac-runner:minimal-flox
+CONTAINER_RUNTIME=docker scripts/verify-minimal-flox senshac-runner:minimal-flox
+```
+
+The verification workflow builds this image alongside the full Flox and Nix
+images, then reports archive and loaded-runtime bytes for all three.
 
 ## Evaluate and inspect
 
@@ -111,8 +126,8 @@ bytes. Each table includes the four requested variants: Nix base/minimal,
 Nix base with the runtime-mounted Flox overlay, a minimal Flox environment
 when a separately built manifest exists, and the legacy/full Flox image. Each
 row includes a ratio to the Nix base in that table. The current repository has
-no separate minimal Flox manifest, so that row is explicitly `unavailable`
-rather than being inferred from the full environment.
+the minimal Flox row is built from the separately locked `.flox/ci` manifest;
+it is never inferred from the full environment.
 
 The Nix archive is measured with `wc -c`; the Flox archive is a gzip-compressed
 `runtime save` stream. Loaded runtime size is the container runtime's
@@ -125,10 +140,10 @@ report script.
 
 Cache and network assumptions are part of the report. Nix may substitute from
 its configured binary cache or build on a cache miss; Flox containerize may
-use its configured package cache. The minimal profile has no package-manager
-or network bootstrap, while the Flox overlay needs a pinned lock and supplied
-Flox binary. The smoke test's GitHub/TLS probes need network access. No
-registry pull is needed for the Nix archive measurement, and the full Flox
-baseline is the locally built locked image. Measurement availability does not
+use its configured package cache. The Nix minimal profile has no package-manager or network bootstrap, while the
+Flox overlay needs a pinned lock and supplied Flox binary. The minimal Flox
+image is built directly from its pinned `.flox/ci` lock. The smoke test's
+GitHub/TLS probes need network access. No registry pull is needed for the Nix
+archive measurement; both Flox baselines are locally built locked images. Measurement availability does not
 turn a CI failure into a pass: build and smoke failures still fail the job,
 while unsupported optional inspect/load operations remain `unavailable`.
