@@ -26,9 +26,13 @@ permissions:
   contents: read
 
 jobs:
-  verify-image:
+  # This is the only image-building job. Its archives are the immutable
+  # producer/consumer boundary for every later check in this workflow.
+  build-images:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: flox/install-flox-action@v2.5.3
@@ -38,28 +42,66 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
-      - name: Validate lock and regression tests
+      - name: Validate lock, flake, and regression tests
         run: |
           scripts/check-flox-lock
           python3 -m unittest discover -s tests -v
           scripts/check-oci-flake
-          nix --extra-experimental-features 'nix-command flakes' build --no-write-lock-file --out-link "$RUNNER_TEMP/oci-image" .#ociImage
-      - name: Build and verify local Docker images
+      - name: Build full Flox image once
         env:
           CONTAINER_RUNTIME: docker
         run: |
           scripts/build-ci-runner senshac-runner:pr-check
-          scripts/smoke-ci-runner senshac-runner:pr-check
-          scripts/build-minimal-flox senshac-runner:minimal-flox-pr
-          scripts/verify-minimal-flox senshac-runner:minimal-flox-pr
-      - name: Load and smoke-test Nix OCI canary
+          docker save senshac-runner:pr-check -o "$RUNNER_TEMP/full-flox-image.tar"
+      - name: Build minimal Flox image once
         env:
           CONTAINER_RUNTIME: docker
         run: |
-          docker load --input "$RUNNER_TEMP/oci-image"
+          scripts/build-minimal-flox senshac-runner:minimal-flox-pr
+          docker save senshac-runner:minimal-flox-pr -o "$RUNNER_TEMP/minimal-flox-image.tar"
+      - name: Build Nix OCI archive once
+        run: |
+          nix --extra-experimental-features 'nix-command flakes' build \
+            --no-write-lock-file --out-link "$RUNNER_TEMP/oci-image" .#ociImage
+          cp "$RUNNER_TEMP/oci-image" "$RUNNER_TEMP/oci-image.tar.gz"
+      - name: Upload immutable image archives
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: senshac-runner-images-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/full-flox-image.tar
+            ${{ runner.temp }}/minimal-flox-image.tar
+            ${{ runner.temp }}/oci-image.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  verify-image:
+    needs: build-images
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: senshac-runner-images-${{ github.sha }}
+          path: ${{ runner.temp }}/runner-images
+      - name: Load the producer's exact image archives
+        run: |
+          docker load --input "$RUNNER_TEMP/runner-images/full-flox-image.tar"
+          docker load --input "$RUNNER_TEMP/runner-images/minimal-flox-image.tar"
+          docker load --input "$RUNNER_TEMP/runner-images/oci-image.tar.gz"
+      - name: Verify all producer outputs
+        env:
+          CONTAINER_RUNTIME: docker
+        run: |
+          scripts/smoke-ci-runner senshac-runner:pr-check
+          scripts/verify-minimal-flox senshac-runner:minimal-flox-pr
           docker image inspect senshac-runner-oci:modular >/dev/null
           scripts/verify-nix-base senshac-runner-oci:modular
       - name: Report image measurements
         env:
           CONTAINER_RUNTIME: docker
-        run: scripts/report-ci-image-size "$RUNNER_TEMP/oci-image" senshac-runner:pr-check senshac-runner:minimal-flox-pr
+        run: |
+          scripts/report-ci-image-size \
+            "$RUNNER_TEMP/runner-images/oci-image.tar.gz" \
+            senshac-runner:pr-check senshac-runner:minimal-flox-pr

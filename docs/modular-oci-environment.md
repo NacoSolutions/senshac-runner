@@ -100,12 +100,14 @@ is assumed. The existing Flox lockfile and cache behavior are independent.
 
 ## Canary status and limitations
 
-The `verify-ci-runner` pull-request workflow now loads the built
-`ociImage` archive as `senshac-runner-oci:modular` and runs the existing
-`scripts/smoke-ci-runner` contract against it. The Nix image uses a small
-argument-forwarding shell entrypoint so the smoke script exercises the image
-itself and failures propagate. A failing Nix smoke check fails verification;
-the existing Flox build and smoke steps remain unchanged.
+The `verify-ci-runner` pull-request workflow has one producer job that builds
+all three image variants once and uploads their Docker-compatible archives.
+Its dependent verification job downloads and loads those exact archives,
+including `ociImage` as `senshac-runner-oci:modular`, then runs the existing
+Flox and Nix smoke contracts. The Nix image uses a small argument-forwarding
+shell entrypoint so the smoke script exercises the image itself and failures
+propagate. A failing smoke check fails verification without relying on a
+container daemon shared between jobs.
 
 This is a canary only. The publish workflow still produces the Flox image, and
 no consumer workflow is switched to Nix. The selected Nix closure intentionally
