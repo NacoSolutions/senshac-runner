@@ -133,6 +133,23 @@ for script in scripts/*; do bash -n "$script"; done
 This repository is the **producer**. A successful publication verifies the
 registry digest and exposes the full immutable image reference in two places:
 
+### Build once, verify by artifact
+
+The pull-request workflow has one `build-images` producer job. It builds the
+full Flox image, minimal Flox image, and public Nix `ociImage` exactly once,
+then uploads Docker-compatible archives. The dependent `verify-image` job
+only downloads and loads those archives; it never invokes `flox containerize`
+or `nix build`. This keeps the handoff independent of a Docker daemon shared
+between jobs while ensuring measurements and smoke tests use the producer's
+exact bytes.
+
+For reuse across workflows, publish the archive or image to a content-addressed
+registry reference and pass its `@sha256:` digest as an explicit job input.
+Consumers should pull/load that digest and verify it before measurement; never
+substitute a mutable tag such as `latest`. The publication workflow already
+records the verified GHCR digest and retains a digest handoff artifact for
+this cross-workflow producer/consumer boundary.
+
 - the workflow job output `image_digest`;
 - the `senshac-runner-image-digest` workflow artifact, whose
   `runner-image-digest.txt` contains one `ghcr.io/...@sha256:...` reference.
