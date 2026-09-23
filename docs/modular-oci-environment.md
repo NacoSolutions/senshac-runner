@@ -58,10 +58,21 @@ miss realizes the selected closure locally; the image remains deterministic
 for the pinned flake input and system. No registry cache or Docker base image
 is assumed. The existing Flox lockfile and cache behavior are independent.
 
-The current CI workflows continue to build and smoke-test the Flox image.
-Adopting `ociImage` as the published runner requires a later compatibility
-migration because the current smoke contract also exercises Flox-provided
-Seeds, Mulch, Terrarium, and Trellis commands.
+## Canary status and limitations
+
+The `verify-ci-runner` pull-request workflow now loads the built
+`ociImage` archive as `senshac-runner-oci:modular` and runs the existing
+`scripts/smoke-ci-runner` contract against it. The Nix image uses a small
+argument-forwarding shell entrypoint so the smoke script exercises the image
+itself and failures propagate. A failing Nix smoke check fails verification;
+the existing Flox build and smoke steps remain unchanged.
+
+This is a canary only. The publish workflow still produces the Flox image, and
+no consumer workflow is switched to Nix. The selected Nix closure intentionally
+does not include Flox-only Seeds, Mulch, Terrarium, Trellis, or other
+interactive developer tooling, so this canary does not establish replacement
+parity for those tools. A later migration must decide whether to expand the
+closure or narrow the consumer contract before changing publication ownership.
 
 ## CI size measurements
 
