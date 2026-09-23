@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+runtime="${CONTAINER_RUNTIME:-docker}"
+image="${1:?Usage: scripts/verify-nix-base IMAGE}"
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# This contract deliberately uses the default minimal profile. It proves that
+# the base image has no implicit Flox activation or network bootstrap.
+"$runtime" run --rm --pull=never \
+  -e SENSHAC_RUNTIME_PROFILE=minimal \
+  "$image" sh -c 'set -eu; test -x "$(command -v flox-bootstrap)"; test -x "$(command -v senshac-runtime)"; command -v bash; test -s "$SSL_CERT_FILE"; test "${SENSHAC_RUNTIME_PROFILE}" = minimal; printf "%s\n" NIX_BASE_MINIMAL_OK'

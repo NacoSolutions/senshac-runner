@@ -6,6 +6,10 @@ set -u -o pipefail
 runtime="${CONTAINER_RUNTIME:-docker}"
 archive="${1:?usage: $0 NIX_ARCHIVE FLOX_IMAGE}"
 flox_image="${2:?usage: $0 NIX_ARCHIVE FLOX_IMAGE}"
+# The overlay is runtime-mounted, so its image contribution is the base
+# archive itself. Set this to a separately built overlay archive when one is
+# available; the report keeps the distinction explicit.
+flox_overlay_archive="${3:-$archive}"
 
 bytes() {
   awk '{print $1}'
@@ -30,6 +34,11 @@ if nix_archive_bytes="$(wc -c < "$archive" 2>/dev/null)" && [[ "$nix_archive_byt
   :
 fi
 
+nix_flox_overlay_bytes="unavailable"
+if nix_flox_overlay_bytes="$(wc -c < "$flox_overlay_archive" 2>/dev/null)" && [[ "$nix_flox_overlay_bytes" =~ ^[0-9]+$ ]]; then
+  :
+fi
+
 loaded_nix_runtime_bytes="unavailable"
 if "$runtime" load < "$archive" >/dev/null 2>&1; then
   loaded_nix_runtime_bytes="$($runtime image inspect --format '{{.Size}}' senshac-runner-oci:modular 2>/dev/null || true)"
@@ -45,10 +54,14 @@ These are measurements from the same CI run; no target ratio is assumed.
 | --- | --- | ---: |
 | Flox image | Compressed runtime-save stream (gzip) | $flox_compressed_bytes |
 | Flox image | Runtime image size from image-inspect (Size) | $flox_runtime_bytes |
-| Nix ociImage | Compressed archive file size (wc -c) | $nix_archive_bytes |
-| Nix ociImage | Loaded runtime image size from image-inspect (Size, when load is available) | $loaded_nix_runtime_bytes |
+| Nix base | Compressed archive file size (wc -c) | $nix_archive_bytes |
+| Nix base + Flox runtime overlay | Archive contribution (runtime-mounted, no rebuild) | $nix_flox_overlay_bytes |
+| Current full Flox baseline | Compressed runtime-save stream (gzip) | $flox_compressed_bytes |
+| Nix base | Loaded runtime image size from image-inspect (Size, when load is available) | $loaded_nix_runtime_bytes |
 
-The archive size is the bytes produced by Nix on disk. Runtime size is the
+The overlay is mounted from the project checkout and its pinned lock/cache;
+this row must not be interpreted as a copied legacy Flox environment. The
+archive size is the bytes produced by Nix on disk. Runtime size is the
 container engine's unpacked/virtual image size and can include layer metadata;
 it is not directly interchangeable with archive size. The optional loaded Nix
 measurement is reported only when the selected runtime can load the archive.
