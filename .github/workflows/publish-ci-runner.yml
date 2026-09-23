@@ -14,13 +14,19 @@ on:
       - "scripts/verify-ci-runner"
   workflow_dispatch:
 
+# A merge creates one main push. A newer merge supersedes an in-flight
+# publication; consumers receive only the digest from the completed run.
+concurrency:
+  group: publish-ci-runner-main
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: nacosolutions/senshac-runner
 
 jobs:
   build-and-push:
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     outputs:

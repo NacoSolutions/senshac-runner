@@ -22,6 +22,10 @@ on:
       - '.github/workflows/publish-ci-runner.yml'
   workflow_dispatch:
 
+concurrency:
+  group: verify-runner-pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -42,11 +46,10 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
-      - name: Validate source, lock, flake, and regression contracts once
-        run: |
-          scripts/check-flox-lock
-          scripts/check-flox-lock .flox/ci
-          python3 -m unittest discover -s tests -v
+      # The PR CI workflow owns source and regression validation. This workflow
+      # builds the producer outputs only after that single validation pass.
+      - name: Validate the comparison lock
+        run: scripts/check-flox-lock .flox/ci
       - name: Build full Flox image once
         env:
           CONTAINER_RUNTIME: docker

@@ -2,8 +2,20 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
+    paths:
+      - '.flox/env/**'
+      - '.flox/ci/**'
+      - '.github/workflows/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'Containerfile.warren-agent'
+      - 'flake.nix'
+      - 'AGENTS.md'
+      - 'docs/**'
+
+concurrency:
+  group: ci-pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -25,7 +37,7 @@ jobs:
           test -x scripts/act-ci
           test -x scripts/build-warren-agent
           test -s Containerfile.warren-agent
-      - name: Validate Flox manifest
+      - name: Validate Flox manifest and regression contracts
         run: |
           scripts/check-flox-lock
           python3 -m unittest discover -s tests -v
