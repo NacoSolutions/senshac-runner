@@ -106,24 +106,29 @@ table to the GitHub Actions step summary. The first workflow run containing this
 change is the first measured result; the summary records its actual byte values
 rather than a value copied from a local or unrelated build.
 
-The table reports:
+The workflow reports two separate tables: archive bytes and loaded runtime
+bytes. Each table includes the four requested variants: Nix base/minimal,
+Nix base with the runtime-mounted Flox overlay, a minimal Flox environment
+when a separately built manifest exists, and the legacy/full Flox image. Each
+row includes a ratio to the Nix base in that table. The current repository has
+no separate minimal Flox manifest, so that row is explicitly `unavailable`
+rather than being inferred from the full environment.
 
-- **Flox compressed image:** the byte count of `runtime save` piped through
-  `gzip`, representing a transport-like compressed image stream.
-- **Flox runtime image size:** the `Size` value returned by the container
-  runtime's `image inspect`, representing the engine's unpacked/virtual image
-  size.
-- **Nix base:** the byte count of the `ociImage` archive on disk, measured
-  with `wc -c`.
-- **Nix base + Flox environment:** the runtime-mounted overlay contribution.
-  It is measured separately and does not copy the legacy environment into the
-  Nix image.
-- **Current full Flox baseline:** the compressed `runtime save` stream of the
-  existing published-style image.
-- **Loaded Nix runtime image size (optional):** the runtime's `image inspect`
-  `Size` after loading the archive, when the selected runtime supports load.
+The Nix archive is measured with `wc -c`; the Flox archive is a gzip-compressed
+`runtime save` stream. Loaded runtime size is the container runtime's
+`image inspect` `Size` after loading/creating the image. These are different
+representations and are not interchangeable. The runtime-mounted overlay rows
+intentionally report the Nix image bytes: the overlay is outside the image and
+its checkout, Flox store, and cache footprint are not included. A separately
+built overlay archive can be passed as the optional third argument to the
+report script.
 
-The archive and runtime values describe different representations and are not
-expected to have a fixed ratio. Measurement availability does not turn a CI
-failure into a pass: build and smoke failures still fail the job, while an
-unsupported optional inspect/load operation is reported as `unavailable`.
+Cache and network assumptions are part of the report. Nix may substitute from
+its configured binary cache or build on a cache miss; Flox containerize may
+use its configured package cache. The minimal profile has no package-manager
+or network bootstrap, while the Flox overlay needs a pinned lock and supplied
+Flox binary. The smoke test's GitHub/TLS probes need network access. No
+registry pull is needed for the Nix archive measurement, and the full Flox
+baseline is the locally built locked image. Measurement availability does not
+turn a CI failure into a pass: build and smoke failures still fail the job,
+while unsupported optional inspect/load operations remain `unavailable`.
