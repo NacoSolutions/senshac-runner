@@ -7,7 +7,9 @@ on:
       - 'scripts/build-ci-runner'
       - 'scripts/check-flox-lock'
       - 'scripts/smoke-ci-runner'
+      - 'scripts/smoke-nix-ci-runner'
       - 'scripts/verify-ci-runner*'
+      - 'scripts/verify-nix-ci-runner'
       - 'scripts/report-ci-image-size'
       - 'tests/test_runner_contract.py'
       - 'tests/test_flake_contract.py'
@@ -52,7 +54,7 @@ jobs:
         run: |
           docker load --input "$RUNNER_TEMP/oci-image"
           docker image inspect senshac-runner-oci:modular >/dev/null
-          scripts/smoke-ci-runner senshac-runner-oci:modular
+          scripts/smoke-nix-ci-runner senshac-runner-oci:modular
       - name: Report image measurements
         env:
           CONTAINER_RUNTIME: docker

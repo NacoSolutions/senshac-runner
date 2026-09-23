@@ -30,8 +30,8 @@ The script defaults to rootless Podman through `flox containerize`. Flox is
 the sole image builder and supplies the image entrypoint that activates the
 environment before dispatching commands. The publication workflow uses Docker;
 the same script and derived-image tar copy are used for both runtimes. The
-publication workflow smoke-tests the activated image for the runner's required
-tools. Override the runtime when needed:
+publication workflow smoke-tests the activated image for the Flox runner's
+required tools. Override the runtime when needed:
 
 ```bash
 CONTAINER_RUNTIME=docker dx scripts/build-ci-runner ghcr.io/nacosolutions/senshac-runner:test
@@ -61,7 +61,10 @@ read-only and runs it by file path through Flox's image entrypoint. It first
 requires a deliberate exit-42 probe, then requires the successful check's
 completion marker. This verifies both execution and failure propagation.
 The standalone activation contract is `FLOX_ENV/bin` on `PATH`; the host
-project path and host Flox CLI belong to the build environment.
+project path and host Flox CLI belong to the build environment. The separate
+Nix canary uses `scripts/smoke-nix-ci-runner IMAGE` and
+`scripts/verify-nix-ci-runner`; it checks only the Nix-selected runtime tools
+and does not require Flox activation or developer tools.
 
 The script attempts to start the user Podman socket with
 `systemctl --user start podman.socket` and exports `DOCKER_HOST` when the

@@ -94,6 +94,17 @@ esac
     def test_success_marker_with_failure_fails(self):
         self.assertNotEqual(self.smoke("marker_then_failure").returncode, 0)
 
+    def test_nix_canary_has_separate_minimal_contract(self):
+        contract = (ROOT / "scripts/verify-nix-ci-runner").read_text()
+        smoke = (ROOT / "scripts/smoke-nix-ci-runner").read_text()
+        for tool in ("tar", "gzip", "git", "gh", "bun", "node", "curl", "jq", "unzip"):
+            self.assertIn(f'command -v "{tool}"', contract)
+        self.assertIn("https://github.com", contract)
+        self.assertIn("tar -czf", contract)
+        self.assertIn("exit 42", contract)
+        self.assertIn("verify-nix-ci-runner", smoke)
+        self.assertIn("SENSHAC_NIX_RUNNER_SMOKE_OK", smoke)
+
     def test_executed_success_passes(self):
         result = self.smoke("success")
         self.assertEqual(result.returncode, 0, result.stderr)
