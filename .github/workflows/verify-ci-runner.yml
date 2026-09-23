@@ -46,6 +46,13 @@ jobs:
         run: |
           scripts/build-ci-runner senshac-runner:pr-check
           scripts/smoke-ci-runner senshac-runner:pr-check
+      - name: Load and smoke-test Nix OCI canary
+        env:
+          CONTAINER_RUNTIME: docker
+        run: |
+          docker load --input "$RUNNER_TEMP/oci-image"
+          docker image inspect senshac-runner-oci:modular >/dev/null
+          scripts/smoke-ci-runner senshac-runner-oci:modular
       - name: Report image measurements
         env:
           CONTAINER_RUNTIME: docker

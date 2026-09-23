@@ -42,8 +42,10 @@
             # runtime metadata; no distribution layer is added.
             contents = [ ciTools pkgs.cacert ];
             config = {
-              Entrypoint = [ "${pkgs.bashInteractive}/bin/bash" ];
-              Cmd = [ "-lc" ];
+              # Forward commands supplied by the smoke harness through a
+              # shell entrypoint while retaining a useful default shell.
+              Entrypoint = [ "${pkgs.bashInteractive}/bin/bash" "-c" "exec \"$@\"" "--" ];
+              Cmd = [ "${pkgs.bashInteractive}/bin/bash" ];
               Env = [
                 "PATH=${ciTools}/bin"
                 "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
