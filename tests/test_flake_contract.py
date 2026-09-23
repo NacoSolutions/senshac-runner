@@ -25,6 +25,16 @@ class FlakeContractTests(unittest.TestCase):
         self.assertIn('"${nix_cmd[@]}" flake check', OCI_CHECK_SCRIPT)
         self.assertIn('"${nix_cmd[@]}" "$@" --no-write-lock-file', OCI_CHECK_SCRIPT)
         self.assertIn('"${nix_cmd[@]}" build --no-write-lock-file .#ciTools .#ociImage', OCI_CHECK_SCRIPT)
+        self.assertIn(
+            "assert_output senshac-runner-oci.tar.gz eval --raw "
+            ".#packages.x86_64-linux.ociImage.name",
+            OCI_CHECK_SCRIPT,
+        )
+        self.assertNotIn(
+            "assert_output senshac-runner-oci eval --raw "
+            ".#packages.x86_64-linux.ociImage.name",
+            OCI_CHECK_SCRIPT,
+        )
 
     def test_oci_validation_does_not_write_flake_lock(self):
         self.assertIn('flake check --no-write-lock-file', OCI_CHECK_SCRIPT)

@@ -24,7 +24,9 @@ assert_output() {
 }
 
 assert_output senshac-ci-tools eval --raw .#packages.x86_64-linux.ciTools.name
-assert_output senshac-runner-oci eval --raw .#packages.x86_64-linux.ociImage.name
+# buildLayeredImage emits a Docker-compatible archive named after the image.
+# Keep this exact assertion so the output contract cannot silently drift.
+assert_output senshac-runner-oci.tar.gz eval --raw .#packages.x86_64-linux.ociImage.name
 
 # Build both public packages, rather than only evaluating their names. The
 # image output is the Docker-compatible archive produced by dockerTools.
