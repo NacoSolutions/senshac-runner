@@ -5,13 +5,14 @@ set -u -o pipefail
 # failure. Build and smoke commands remain responsible for failing CI.
 runtime="${CONTAINER_RUNTIME:-docker}"
 archive="${1:?usage: $0 NIX_ARCHIVE FLOX_IMAGE}"
-flox_image="${2:?usage: $0 NIX_ARCHIVE FLOX_IMAGE}"
+flox_image="${2:?usage: $0 NIX_ARCHIVE FLOX_IMAGE MINIMAL_FLOX_IMAGE}"
+minimal_flox_image="${3:?usage: $0 NIX_ARCHIVE FLOX_IMAGE MINIMAL_FLOX_IMAGE}"
 # The overlay is runtime-mounted, so its image contribution is the base
 # archive itself. Set this to a separately built overlay archive when one is
 # available; the report keeps the distinction explicit.
-# A runtime-mounted overlay has no image archive. Accept a third argument only
+# A runtime-mounted overlay has no image archive. Accept a fourth argument only
 # when a separately built overlay artifact exists; never count the base twice.
-flox_overlay_archive="${3:-unavailable}"
+flox_overlay_archive="${4:-unavailable}"
 
 bytes() {
   awk '{print $1}'
@@ -27,11 +28,25 @@ ratio() {
   fi
 }
 
+minimal_flox_runtime_bytes="unavailable"
+if minimal_flox_runtime_bytes="$($runtime image inspect --format '{{.Size}}' "$minimal_flox_image" 2>/dev/null)" && [[ "$minimal_flox_runtime_bytes" =~ ^[0-9]+$ ]]; then
+  :
+else
+  minimal_flox_runtime_bytes="unavailable"
+fi
+
 flox_runtime_bytes="unavailable"
 if flox_runtime_bytes="$($runtime image inspect --format '{{.Size}}' "$flox_image" 2>/dev/null)" && [[ "$flox_runtime_bytes" =~ ^[0-9]+$ ]]; then
   :
 else
   flox_runtime_bytes="unavailable"
+fi
+
+minimal_flox_compressed_bytes="unavailable"
+if minimal_flox_compressed_bytes="$($runtime save "$minimal_flox_image" 2>/dev/null | gzip -c | wc -c | bytes)" && [[ "$minimal_flox_compressed_bytes" =~ ^[0-9]+$ ]]; then
+  :
+else
+  minimal_flox_compressed_bytes="unavailable"
 fi
 
 flox_compressed_bytes="unavailable"
@@ -59,7 +74,9 @@ fi
 
 nix_archive_ratio="$(ratio "$nix_archive_bytes" "$nix_archive_bytes")"
 nix_overlay_archive_ratio="$(ratio "$nix_flox_overlay_bytes" "$nix_archive_bytes")"
+minimal_flox_archive_ratio="$(ratio "$minimal_flox_compressed_bytes" "$nix_archive_bytes")"
 flox_archive_ratio="$(ratio "$flox_compressed_bytes" "$nix_archive_bytes")"
+minimal_flox_runtime_ratio="$(ratio "$minimal_flox_runtime_bytes" "$loaded_nix_runtime_bytes")"
 nix_runtime_ratio="$(ratio "$loaded_nix_runtime_bytes" "$loaded_nix_runtime_bytes")"
 nix_overlay_runtime_ratio="$(ratio "$loaded_nix_runtime_bytes" "$loaded_nix_runtime_bytes")"
 flox_runtime_ratio="$(ratio "$flox_runtime_bytes" "$loaded_nix_runtime_bytes")"
@@ -77,7 +94,7 @@ reported observations, not targets.
 | --- | ---: | ---: |
 | Nix base/minimal profile | $nix_archive_bytes | $nix_archive_ratio |
 | Nix base + runtime Flox overlay | $nix_flox_overlay_bytes | $nix_overlay_archive_ratio |
-| Minimal Flox environment (same CI contract) | unavailable (not provided) | unavailable |
+| Minimal Flox environment (same CI contract) | $minimal_flox_compressed_bytes | $minimal_flox_archive_ratio |
 | Legacy/full Flox baseline | $flox_compressed_bytes | $flox_archive_ratio |
 
 ### Loaded runtime size (container engine image-inspect Size)
@@ -86,15 +103,15 @@ reported observations, not targets.
 | --- | ---: | ---: |
 | Nix base/minimal profile | $loaded_nix_runtime_bytes | $nix_runtime_ratio |
 | Nix base + runtime Flox overlay (image layers only) | $loaded_nix_runtime_bytes | $nix_overlay_runtime_ratio |
-| Minimal Flox environment (same CI contract) | unavailable (not provided) | unavailable |
+| Minimal Flox environment (same CI contract) | $minimal_flox_runtime_bytes | $minimal_flox_runtime_ratio |
 | Legacy/full Flox baseline | $flox_runtime_bytes | $flox_runtime_ratio |
 
 The runtime Flox overlay is mounted from the checkout and is deliberately not
 copied into the Nix archive. Its archive and loaded-image rows therefore report
 the Nix base image only; the mounted profile's filesystem/cache footprint is
 not measured by the container image engine. A minimal Flox variant is reported
-as unavailable because this repository has no separately built minimal Flox
-manifest; the full locked Flox environment is the reproducible baseline.
+from the separately locked `.flox/ci` manifest; the full locked Flox
+environment remains the developer baseline.
 
 Archive bytes are file/stream bytes and loaded bytes are the engine's
 unpacked/virtual image size; the two columns are not interchangeable. Nix

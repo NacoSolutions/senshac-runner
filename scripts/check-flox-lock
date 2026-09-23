@@ -2,7 +2,8 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-python3 - "$repo/.flox/env/manifest.toml" "$repo/.flox/env/manifest.lock" <<'PY'
+environment_dir="${1:-$repo/.flox/env}"
+python3 - "$environment_dir/manifest.toml" "$environment_dir/manifest.lock" <<'PY'
 import json
 import sys
 import tomllib

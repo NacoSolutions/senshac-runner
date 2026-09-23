@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+runtime="${CONTAINER_RUNTIME:-docker}"
+image="${1:?Usage: scripts/verify-minimal-flox IMAGE}"
+"$runtime" run --rm --pull=never "$image" sh -c '
+  set -eu
+  for tool in bash bun curl find gh git grep tar gzip jq node unzip; do
+    command -v "$tool" >/dev/null
+  done
+  test -n "${SSL_CERT_FILE:-}"
+  test -s "$SSL_CERT_FILE"
+  printf "%s\n" MINIMAL_FLOX_OK
+'
