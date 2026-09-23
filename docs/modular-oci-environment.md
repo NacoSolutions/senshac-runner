@@ -37,9 +37,11 @@ nix --extra-experimental-features 'nix-command flakes' build --no-write-lock-fil
 
 The public `ociImage` output is a Docker-compatible archive suitable for
 `podman load` or `docker load`; it is assembled directly by
-`pkgs.dockerTools.buildLayeredImage`. The output name remains `ociImage` for
-compatibility (it is not `dockerArchive` or `oci-img`). Validate the selected
-closure, build both outputs, and check their deterministic metadata with:
+`pkgs.dockerTools.buildLayeredImage`. Its evaluated derivation name is
+`senshac-runner-oci.tar.gz`, the Docker-compatible archive produced by that
+builder. The public output attribute remains `ociImage` for compatibility (it
+is not `dockerArchive` or `oci-img`). Validate the selected closure, build both
+outputs, and check their deterministic metadata with:
 
 ```bash
 scripts/check-oci-flake
