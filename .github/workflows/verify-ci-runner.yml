@@ -8,6 +8,7 @@ on:
       - 'scripts/check-flox-lock'
       - 'scripts/smoke-ci-runner'
       - 'scripts/verify-ci-runner*'
+      - 'scripts/report-ci-image-size'
       - 'tests/test_runner_contract.py'
       - 'tests/test_flake_contract.py'
       - 'flake.nix'
@@ -38,9 +39,14 @@ jobs:
           scripts/check-flox-lock
           python3 -m unittest discover -s tests -v
           scripts/check-oci-flake
+          nix --extra-experimental-features 'nix-command flakes' build --no-write-lock-file --out-link "$RUNNER_TEMP/oci-image" .#ociImage
       - name: Build and verify local Docker image
         env:
           CONTAINER_RUNTIME: docker
         run: |
           scripts/build-ci-runner senshac-runner:pr-check
           scripts/smoke-ci-runner senshac-runner:pr-check
+      - name: Report image measurements
+        env:
+          CONTAINER_RUNTIME: docker
+        run: scripts/report-ci-image-size "$RUNNER_TEMP/oci-image" senshac-runner:pr-check
