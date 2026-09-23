@@ -9,6 +9,10 @@ on:
       - .github/workflows/publish-warren-agent.yml
   workflow_dispatch:
 
+concurrency:
+  group: publish-warren-agent-main
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: nacosolutions/senshac-warren-agent

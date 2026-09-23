@@ -12,6 +12,7 @@ on:
       - 'flake.nix'
       - 'AGENTS.md'
       - 'docs/**'
+  workflow_dispatch:
 
 concurrency:
   group: ci-pr-${{ github.event.pull_request.number || github.ref }}
