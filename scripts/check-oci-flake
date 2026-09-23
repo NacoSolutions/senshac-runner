@@ -28,9 +28,13 @@ assert_output senshac-ci-tools eval --raw .#packages.x86_64-linux.ciTools.name
 # Keep this exact assertion so the output contract cannot silently drift.
 assert_output senshac-runner-oci.tar.gz eval --raw .#packages.x86_64-linux.ociImage.name
 
-# Build both public packages, rather than only evaluating their names. The
-# image output is the Docker-compatible archive produced by dockerTools.
-"${nix_cmd[@]}" build --no-write-lock-file .#ciTools .#ociImage
+# Build both public packages, rather than only evaluating their names. Keep
+# the OCI output at a caller-supplied link so the workflow can upload this
+# exact build instead of rebuilding it in a later step.
+"${nix_cmd[@]}" build --no-write-lock-file .#ciTools
+oci_link="${OCI_ARCHIVE_OUTPUT:-$repo/.oci-image-check}"
+rm -f "$oci_link"
+"${nix_cmd[@]}" build --no-write-lock-file --out-link "$oci_link" .#ociImage
 
 metadata_dir="$(mktemp -d)"
 trap 'rm -rf "$metadata_dir"' EXIT

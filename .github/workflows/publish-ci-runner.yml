@@ -51,7 +51,17 @@ jobs:
           echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Flox build and runtime retagging complete"
 
       - name: Verify local image before publication
-        run: CONTAINER_RUNTIME=docker scripts/smoke-ci-runner "${REGISTRY}/${IMAGE_NAME}:sha-${GITHUB_SHA}"
+        run: |
+          set -eu
+          image="${REGISTRY}/${IMAGE_NAME}:sha-${GITHUB_SHA}"
+          CONTAINER_RUNTIME=docker scripts/smoke-ci-runner "$image"
+          docker save "$image" -o "$RUNNER_TEMP/published-runner-image.tar"
+          sha256sum "$RUNNER_TEMP/published-runner-image.tar" > "$RUNNER_TEMP/published-runner-image.sha256"
+          {
+            printf 'workflow_sha=%s\n' '${{ github.sha }}'
+            printf 'image=%s\n' "$image"
+            printf 'image_id=%s\n' "$(docker image inspect --format '{{.Id}}' "$image")"
+          } > "$RUNNER_TEMP/published-runner-image.metadata"
 
       - name: Record current rollback digest
         id: rollback
@@ -112,13 +122,26 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+      - name: Upload immutable image archive and provenance
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: senshac-runner-published-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/published-runner-image.tar
+            ${{ runner.temp }}/published-runner-image.sha256
+            ${{ runner.temp }}/published-runner-image.metadata
+            runner-image-digest.txt
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Record publication
         run: |
           {
             echo "## CI runner publication"
             echo
             echo "- Immutable image (consumer pin): \`${{ steps.immutable.outputs.digest }}\`"
-            echo "- Handoff artifact: \`senshac-runner-image-digest/runner-image-digest.txt\`"
+            echo "- Handoff artifact: \`runner-image-digest.txt\`"
+            echo "- Published archive artifact: \`senshac-runner-published-${GITHUB_SHA}\`"
             echo "- Previous latest (rollback): \`${{ steps.rollback.outputs.digest }}\`"
             echo "- Promoted tag: \`${REGISTRY}/${IMAGE_NAME}:latest\`"
           } >> "$GITHUB_STEP_SUMMARY"

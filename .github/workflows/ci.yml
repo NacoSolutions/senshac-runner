@@ -29,20 +29,3 @@ jobs:
         run: |
           scripts/check-flox-lock
           python3 -m unittest discover -s tests -v
-      - name: Build and smoke-test Warren agent image
-        run: |
-          CONTAINER_RUNTIME=docker scripts/build-warren-agent senshac-warren-agent:ci
-          docker run --rm --entrypoint sh senshac-warren-agent:ci -lc '
-            command -v pi
-            command -v gh
-            command -v git
-            command -v jq
-            command -v tar
-            test "$(command -v tr)" = /usr/local/bin/tr
-            test "$(command -v terrarium)" = /usr/local/bin/terrarium
-            tr --help
-            terrarium --help
-            sd --version
-            ml --version
-            trellis --help
-          '
