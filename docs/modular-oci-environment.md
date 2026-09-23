@@ -63,8 +63,26 @@ Adopting `ociImage` as the published runner requires a later compatibility
 migration because the current smoke contract also exercises Flox-provided
 Seeds, Mulch, Terrarium, and Trellis commands.
 
-Size metrics remain a TODO. CI does not currently expose a reliable,
-comparable measurement for both the `dockerTools` archive and the existing
-Flox image (including their respective closures), so this change records no
-fabricated numbers. Add metrics only after one CI job can measure both outputs
-from the same build and report archive and closure sizes explicitly.
+## CI size measurements
+
+The `verify-ci-runner` workflow builds both artifacts and appends a measurement
+table to the GitHub Actions step summary. The first workflow run containing this
+change is the first measured result; the summary records its actual byte values
+rather than a value copied from a local or unrelated build.
+
+The table reports:
+
+- **Flox compressed image:** the byte count of `runtime save` piped through
+  `gzip`, representing a transport-like compressed image stream.
+- **Flox runtime image size:** the `Size` value returned by the container
+  runtime's `image inspect`, representing the engine's unpacked/virtual image
+  size.
+- **Nix archive size:** the byte count of the `ociImage` archive on disk,
+  measured with `wc -c`.
+- **Loaded Nix runtime image size (optional):** the runtime's `image inspect`
+  `Size` after loading the archive, when the selected runtime supports load.
+
+The archive and runtime values describe different representations and are not
+expected to have a fixed ratio. Measurement availability does not turn a CI
+failure into a pass: build and smoke failures still fail the job, while an
+unsupported optional inspect/load operation is reported as `unavailable`.

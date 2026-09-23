@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -u -o pipefail
+
+# Report measurements without turning an optional measurement into a build
+# failure. Build and smoke commands remain responsible for failing CI.
+runtime="${CONTAINER_RUNTIME:-docker}"
+archive="${1:?usage: $0 NIX_ARCHIVE FLOX_IMAGE}"
+flox_image="${2:?usage: $0 NIX_ARCHIVE FLOX_IMAGE}"
+
+bytes() {
+  awk '{print $1}'
+}
+
+flox_runtime_bytes="unavailable"
+if flox_runtime_bytes="$($runtime image inspect --format '{{.Size}}' "$flox_image" 2>/dev/null)" && [[ "$flox_runtime_bytes" =~ ^[0-9]+$ ]]; then
+  :
+else
+  flox_runtime_bytes="unavailable"
+fi
+
+flox_compressed_bytes="unavailable"
+if flox_compressed_bytes="$($runtime save "$flox_image" 2>/dev/null | gzip -c | wc -c | bytes)" && [[ "$flox_compressed_bytes" =~ ^[0-9]+$ ]]; then
+  :
+else
+  flox_compressed_bytes="unavailable"
+fi
+
+nix_archive_bytes="unavailable"
+if nix_archive_bytes="$(wc -c < "$archive" 2>/dev/null)" && [[ "$nix_archive_bytes" =~ ^[0-9]+$ ]]; then
+  :
+fi
+
+loaded_nix_runtime_bytes="unavailable"
+if "$runtime" load < "$archive" >/dev/null 2>&1; then
+  loaded_nix_runtime_bytes="$($runtime image inspect --format '{{.Size}}' senshac-runner-oci:modular 2>/dev/null || true)"
+  [[ "$loaded_nix_runtime_bytes" =~ ^[0-9]+$ ]] || loaded_nix_runtime_bytes="unavailable"
+fi
+
+summary=$(cat <<EOF
+## CI runner image measurements
+
+These are measurements from the same CI run; no target ratio is assumed.
+
+| Artifact | Measurement | Bytes |
+| --- | --- | ---: |
+| Flox image | Compressed runtime-save stream (gzip) | $flox_compressed_bytes |
+| Flox image | Runtime image size from image-inspect (Size) | $flox_runtime_bytes |
+| Nix ociImage | Compressed archive file size (wc -c) | $nix_archive_bytes |
+| Nix ociImage | Loaded runtime image size from image-inspect (Size, when load is available) | $loaded_nix_runtime_bytes |
+
+The archive size is the bytes produced by Nix on disk. Runtime size is the
+container engine's unpacked/virtual image size and can include layer metadata;
+it is not directly interchangeable with archive size. The optional loaded Nix
+measurement is reported only when the selected runtime can load the archive.
+EOF
+)
+printf '%s\n' "$summary"
+if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+  printf '%s\n' "$summary" >> "$GITHUB_STEP_SUMMARY"
+fi
