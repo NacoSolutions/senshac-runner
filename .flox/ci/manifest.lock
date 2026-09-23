@@ -34,8 +34,7 @@
         "pkg-group": "gnutar"
       },
       "gzip": {
-        "pkg-path": "gzip",
-        "pkg-group": "gzip"
+        "pkg-path": "gzip"
       },
       "jq": {
         "pkg-path": "jq",
