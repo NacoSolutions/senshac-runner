@@ -35,9 +35,11 @@ nix --extra-experimental-features 'nix-command flakes' build --no-write-lock-fil
 nix --extra-experimental-features 'nix-command flakes' build --no-write-lock-file .#ociImage
 ```
 
-The OCI output is a tarball suitable for `podman load` or `docker load`; it is
-assembled directly by `pkgs.dockerTools.buildLayeredImage`. Validate the
-selected closure and its deterministic metadata with:
+The public `ociImage` output is a Docker-compatible archive suitable for
+`podman load` or `docker load`; it is assembled directly by
+`pkgs.dockerTools.buildLayeredImage`. The output name remains `ociImage` for
+compatibility (it is not `dockerArchive` or `oci-img`). Validate the selected
+closure, build both outputs, and check their deterministic metadata with:
 
 ```bash
 scripts/check-oci-flake
@@ -58,3 +60,9 @@ The current CI workflows continue to build and smoke-test the Flox image.
 Adopting `ociImage` as the published runner requires a later compatibility
 migration because the current smoke contract also exercises Flox-provided
 Seeds, Mulch, Terrarium, and Trellis commands.
+
+Size metrics remain a TODO. CI does not currently expose a reliable,
+comparable measurement for both the `dockerTools` archive and the existing
+Flox image (including their respective closures), so this change records no
+fabricated numbers. Add metrics only after one CI job can measure both outputs
+from the same build and report archive and closure sizes explicitly.

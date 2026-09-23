@@ -9,14 +9,49 @@ if ! command -v nix >/dev/null 2>&1; then
   exit 2
 fi
 
-nix --extra-experimental-features 'nix-command flakes' flake check --no-write-lock-file
-nix --extra-experimental-features 'nix-command flakes' eval --no-write-lock-file --raw .#packages.x86_64-linux.ciTools.name | grep -Fx senshac-ci-tools
-nix --extra-experimental-features 'nix-command flakes' eval --no-write-lock-file --raw .#packages.x86_64-linux.ociImage.name | grep -Fx senshac-runner-oci
-metadata_link="$(mktemp -u)"
-trap 'rm -f "$metadata_link"' EXIT
-nix --extra-experimental-features 'nix-command flakes' build --no-write-lock-file --out-link "$metadata_link" .#checks.x86_64-linux.oci-closure-metadata
-metadata="$(<"$metadata_link/metadata")"
-grep -Fqx 'base_image=none' <<<"$metadata"
-grep -F 'selected_tools=' <<<"$metadata" >/dev/null
-grep -Fqx 'image=senshac-runner-oci:modular' <<<"$metadata"
-printf '%s\n' 'Nix flake and OCI closure metadata validation passed'
+nix_cmd=(nix --extra-experimental-features 'nix-command flakes')
+"${nix_cmd[@]}" flake check --no-write-lock-file
+
+assert_output() {
+  local expected="$1"
+  shift
+  local actual
+  actual="$("${nix_cmd[@]}" "$@" --no-write-lock-file)"
+  if [[ "$actual" != "$expected" ]]; then
+    printf 'Unexpected output for %q: %s (expected %s)\n' "$1" "$actual" "$expected" >&2
+    exit 1
+  fi
+}
+
+assert_output senshac-ci-tools eval --raw .#packages.x86_64-linux.ciTools.name
+assert_output senshac-runner-oci eval --raw .#packages.x86_64-linux.ociImage.name
+
+# Build both public packages, rather than only evaluating their names. The
+# image output is the Docker-compatible archive produced by dockerTools.
+"${nix_cmd[@]}" build --no-write-lock-file .#ciTools .#ociImage
+
+metadata_dir="$(mktemp -d)"
+trap 'rm -rf "$metadata_dir"' EXIT
+"${nix_cmd[@]}" build --no-write-lock-file --out-link "$metadata_dir/result" .#checks.x86_64-linux.oci-closure-metadata
+metadata_file="$metadata_dir/result/metadata"
+declare -A metadata=()
+while IFS='=' read -r key value; do
+  [[ -n "$key" ]] || continue
+  metadata["$key"]="$value"
+done < "$metadata_file"
+
+assert_metadata() {
+  local key="$1"
+  local expected="$2"
+  if [[ "${metadata[$key]-}" != "$expected" ]]; then
+    printf 'Unexpected metadata %s: %s (expected %s)\n' "$key" "${metadata[$key]-}" "$expected" >&2
+    exit 1
+  fi
+}
+
+assert_metadata image 'senshac-runner-oci:modular'
+assert_metadata base_image none
+assert_metadata selected_tools 'bash bun cacert coreutils curl findutils gh git gnugrep gnutar gzip jq nodejs_22 unzip'
+[[ -n "${metadata[ci_tools]-}" ]] || { echo 'ci_tools metadata is empty' >&2; exit 1; }
+[[ -n "${metadata[image_tarball]-}" ]] || { echo 'image_tarball metadata is empty' >&2; exit 1; }
+printf '%s\n' 'Nix flake, OCI build, and closure metadata validation passed'

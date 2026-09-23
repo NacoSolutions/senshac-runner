@@ -29,6 +29,10 @@ jobs:
       - uses: flox/install-flox-action@v2.5.3
         with:
           version: '1.16.0'
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
       - name: Validate lock and regression tests
         run: |
           scripts/check-flox-lock
