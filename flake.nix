@@ -33,6 +33,8 @@
             pathsToLink = [ "/bin" "/sbin" "/share" ];
           };
 
+          # Keep this public output name stable. dockerTools produces a
+          # Docker-compatible archive (loadable by Docker or Podman).
           ociImage = pkgs.dockerTools.buildLayeredImage {
             name = "senshac-runner-oci";
             tag = "modular";

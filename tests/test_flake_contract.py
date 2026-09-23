@@ -21,20 +21,16 @@ class FlakeContractTests(unittest.TestCase):
 
     def test_oci_validation_enables_nix_command_and_flakes(self):
         flag = "nix --extra-experimental-features 'nix-command flakes'"
-        self.assertEqual(OCI_CHECK_SCRIPT.count(flag), 4)
-        self.assertIn(f"{flag} flake check", OCI_CHECK_SCRIPT)
-        self.assertIn(f"{flag} eval", OCI_CHECK_SCRIPT)
-        self.assertIn(f"{flag} build", OCI_CHECK_SCRIPT)
+        self.assertIn("nix_cmd=(" + flag + ")", OCI_CHECK_SCRIPT)
+        self.assertIn('"${nix_cmd[@]}" flake check', OCI_CHECK_SCRIPT)
+        self.assertIn('"${nix_cmd[@]}" "$@" --no-write-lock-file', OCI_CHECK_SCRIPT)
+        self.assertIn('"${nix_cmd[@]}" build --no-write-lock-file .#ciTools .#ociImage', OCI_CHECK_SCRIPT)
 
     def test_oci_validation_does_not_write_flake_lock(self):
-        operations = ("flake check", "eval", "build")
-        for operation in operations:
-            with self.subTest(operation=operation):
-                self.assertIn(
-                    f"{operation} --no-write-lock-file",
-                    OCI_CHECK_SCRIPT,
-                )
-        self.assertEqual(OCI_CHECK_SCRIPT.count("--no-write-lock-file"), 4)
+        self.assertIn('flake check --no-write-lock-file', OCI_CHECK_SCRIPT)
+        self.assertIn('build --no-write-lock-file', OCI_CHECK_SCRIPT)
+        self.assertNotIn('grep -F', OCI_CHECK_SCRIPT)
+        self.assertNotIn('<<<', OCI_CHECK_SCRIPT)
 
     def test_metadata_writer_preserves_exact_contract_lines(self):
         self.assertIn("printf '%s\\n' \\", FLAKE)
