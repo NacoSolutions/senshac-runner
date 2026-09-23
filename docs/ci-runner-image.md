@@ -128,6 +128,28 @@ python3 -m unittest discover -s tests -v
 for script in scripts/*; do bash -n "$script"; done
 ```
 
+## Workflow event matrix
+
+The workflows use one validation owner per pull request and one publication
+owner per merged commit. A merge is represented by the resulting `push` to
+`main`; it does not replay pull-request verification as a main-branch check.
+All three workflow classes use path filters so unrelated documentation or
+metadata changes do not allocate runner/image jobs.
+
+| Event | Workflow | Work | Concurrency and handoff |
+| --- | --- | --- | --- |
+| `pull_request` (changed runner paths) | `CI` | Bash, manifest, and Python contract validation | `ci-pr-<number>` cancels superseded commits; this is the required source-validation check |
+| `pull_request` (changed image/OCI paths) | `Verify CI Runner Container` | Builds each producer image once, then verifies the immutable uploaded archives | `verify-runner-pr-<number>` cancels superseded commits; it relies on CI for the general validation pass |
+| `push` to `main` after merge (publication paths) | `Publish CI Runner Container` | Builds the runner needed by the merge, smoke-tests it, publishes its immutable `sha-<commit>` tag, verifies the registry digest, and promotes `latest` | `publish-ci-runner-main` cancels an obsolete in-flight publication; the digest artifact is the consumer handoff |
+| `workflow_dispatch` | `Publish CI Runner Container` or `Verify CI Runner Container` | Explicit operator rerun of the selected build or verification | Uses the same concurrency group and immutable archive/digest rules |
+
+The PR image workflow and the post-merge publication workflow intentionally do
+not trigger each other. The PR workflow does not publish, and the main
+workflow does not run the full PR validation suite again. The publication
+workflow retains its registry pull-and-smoke step because it proves the exact
+immutable digest that consumers pin; the local pre-push smoke step catches a
+bad build before publication.
+
 ## Producer/consumer handoff
 
 This repository is the **producer**. A successful publication verifies the
