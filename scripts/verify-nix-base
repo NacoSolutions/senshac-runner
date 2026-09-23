@@ -9,4 +9,23 @@ repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # the base image has no implicit Flox activation or network bootstrap.
 "$runtime" run --rm --pull=never \
   -e SENSHAC_RUNTIME_PROFILE=minimal \
-  "$image" sh -c 'set -eu; test -x "$(command -v flox-bootstrap)"; test -x "$(command -v senshac-runtime)"; command -v bash; test -s "$SSL_CERT_FILE"; test "${SENSHAC_RUNTIME_PROFILE}" = minimal; printf "%s\n" NIX_BASE_MINIMAL_OK'
+  "$image" sh -c '
+    set -eu
+    fail() {
+      printf "NIX_BASE_MINIMAL_CHECK_FAILED: %s\n" "$1" >&2
+      exit 1
+    }
+    bootstrap="$(command -v flox-bootstrap 2>/dev/null || true)"
+    [ -x "$bootstrap" ] || fail "flox-bootstrap is not executable: ${bootstrap:-not found}"
+    runtime_profile="$(command -v senshac-runtime 2>/dev/null || true)"
+    [ -x "$runtime_profile" ] || fail "senshac-runtime is not executable: ${runtime_profile:-not found}"
+    bash_path="$(command -v bash 2>/dev/null || true)"
+    [ -n "$bash_path" ] || fail "missing command: bash"
+    cert="${SSL_CERT_FILE:-}"
+    [ -n "$cert" ] || fail "SSL_CERT_FILE is unset"
+    [ -s "$cert" ] || fail "SSL_CERT_FILE is not a non-empty file: $cert"
+    [ "${SENSHAC_RUNTIME_PROFILE:-}" = minimal ] || fail "unexpected runtime profile: ${SENSHAC_RUNTIME_PROFILE:-unset}"
+    printf "NIX_BASE_MINIMAL_PATHS: flox-bootstrap=%s senshac-runtime=%s bash=%s\n" "$bootstrap" "$runtime_profile" "$bash_path"
+    printf "NIX_BASE_MINIMAL_CERT: %s\n" "$cert"
+    printf "%s\n" NIX_BASE_MINIMAL_OK
+  '

@@ -90,13 +90,22 @@ jobs:
           docker load --input "$RUNNER_TEMP/runner-images/full-flox-image.tar"
           docker load --input "$RUNNER_TEMP/runner-images/minimal-flox-image.tar"
           docker load --input "$RUNNER_TEMP/runner-images/oci-image.tar.gz"
-      - name: Verify all producer outputs
+      - name: Verify full Flox producer output
+        env:
+          CONTAINER_RUNTIME: docker
+        run: scripts/smoke-ci-runner senshac-runner:pr-check
+      - name: Verify minimal Flox producer output
+        env:
+          CONTAINER_RUNTIME: docker
+        run: scripts/verify-minimal-flox senshac-runner:minimal-flox-pr
+      - name: Verify Nix producer output
         env:
           CONTAINER_RUNTIME: docker
         run: |
-          scripts/smoke-ci-runner senshac-runner:pr-check
-          scripts/verify-minimal-flox senshac-runner:minimal-flox-pr
-          docker image inspect senshac-runner-oci:modular >/dev/null
+          docker image inspect senshac-runner-oci:modular >/dev/null || {
+            echo 'Nix producer image was not loaded as senshac-runner-oci:modular' >&2
+            exit 1
+          }
           scripts/verify-nix-base senshac-runner-oci:modular
       - name: Report image measurements
         env:
