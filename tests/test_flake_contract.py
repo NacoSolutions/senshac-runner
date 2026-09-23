@@ -33,7 +33,8 @@ class FlakeContractTests(unittest.TestCase):
         self.assertIn("nix_cmd=(" + flag + ")", OCI_CHECK_SCRIPT)
         self.assertIn('"${nix_cmd[@]}" flake check', OCI_CHECK_SCRIPT)
         self.assertIn('"${nix_cmd[@]}" "$@" --no-write-lock-file', OCI_CHECK_SCRIPT)
-        self.assertIn('"${nix_cmd[@]}" build --no-write-lock-file .#ciTools .#ociImage', OCI_CHECK_SCRIPT)
+        self.assertIn('"${nix_cmd[@]}" build --no-write-lock-file .#ciTools', OCI_CHECK_SCRIPT)
+        self.assertIn('"${nix_cmd[@]}" build --no-write-lock-file --out-link "$oci_link" .#ociImage', OCI_CHECK_SCRIPT)
         self.assertIn(
             "assert_output senshac-runner-oci.tar.gz eval --raw "
             ".#packages.x86_64-linux.ociImage.name",

@@ -42,29 +42,43 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
-      - name: Validate lock, flake, and regression tests
+      - name: Validate source, lock, flake, and regression contracts once
         run: |
           scripts/check-flox-lock
+          scripts/check-flox-lock .flox/ci
           python3 -m unittest discover -s tests -v
-          scripts/check-oci-flake
       - name: Build full Flox image once
         env:
           CONTAINER_RUNTIME: docker
+          SKIP_FLOX_LOCK_CHECK: '1'
         run: |
           scripts/build-ci-runner senshac-runner:pr-check
           docker save senshac-runner:pr-check -o "$RUNNER_TEMP/full-flox-image.tar"
       - name: Build minimal Flox image once
         env:
           CONTAINER_RUNTIME: docker
+          SKIP_FLOX_LOCK_CHECK: '1'
         run: |
           scripts/build-minimal-flox senshac-runner:minimal-flox-pr
           docker save senshac-runner:minimal-flox-pr -o "$RUNNER_TEMP/minimal-flox-image.tar"
       - name: Build Nix OCI archive once
+        env:
+          OCI_ARCHIVE_OUTPUT: ${{ runner.temp }}/oci-image.tar.gz
+        run: scripts/check-oci-flake
+      - name: Record immutable image archive metadata and digests
         run: |
-          nix --extra-experimental-features 'nix-command flakes' build \
-            --no-write-lock-file --out-link "$RUNNER_TEMP/oci-image" .#ociImage
-          cp "$RUNNER_TEMP/oci-image" "$RUNNER_TEMP/oci-image.tar.gz"
-      - name: Upload immutable image archives
+          set -eu
+          cd "$RUNNER_TEMP"
+          sha256sum full-flox-image.tar minimal-flox-image.tar oci-image.tar.gz > image-archives.sha256
+          {
+            printf 'workflow_sha=%s\n' '${{ github.sha }}'
+            printf 'full_flox_image=senshac-runner:pr-check\n'
+            printf 'full_flox_image_id=%s\n' "$(docker image inspect --format '{{.Id}}' senshac-runner:pr-check)"
+            printf 'minimal_flox_image=senshac-runner:minimal-flox-pr\n'
+            printf 'minimal_flox_image_id=%s\n' "$(docker image inspect --format '{{.Id}}' senshac-runner:minimal-flox-pr)"
+            printf 'nix_archive=senshac-runner-oci.tar.gz\n'
+          } > image-metadata.txt
+      - name: Upload immutable image archives and provenance
         uses: actions/upload-artifact@v4.6.2
         with:
           name: senshac-runner-images-${{ github.sha }}
@@ -72,6 +86,8 @@ jobs:
             ${{ runner.temp }}/full-flox-image.tar
             ${{ runner.temp }}/minimal-flox-image.tar
             ${{ runner.temp }}/oci-image.tar.gz
+            ${{ runner.temp }}/image-archives.sha256
+            ${{ runner.temp }}/image-metadata.txt
           if-no-files-found: error
           retention-days: 7
 
@@ -85,11 +101,17 @@ jobs:
         with:
           name: senshac-runner-images-${{ github.sha }}
           path: ${{ runner.temp }}/runner-images
-      - name: Load the producer's exact image archives
+      - name: Verify and load the producer's exact image archives
         run: |
-          docker load --input "$RUNNER_TEMP/runner-images/full-flox-image.tar"
-          docker load --input "$RUNNER_TEMP/runner-images/minimal-flox-image.tar"
-          docker load --input "$RUNNER_TEMP/runner-images/oci-image.tar.gz"
+          set -eu
+          cd "$RUNNER_TEMP/runner-images"
+          sha256sum --check image-archives.sha256
+          grep -F "workflow_sha=${GITHUB_SHA}" image-metadata.txt
+          docker load --input full-flox-image.tar
+          docker load --input minimal-flox-image.tar
+          docker load --input oci-image.tar.gz
+          test "$(docker image inspect --format '{{.Id}}' senshac-runner:pr-check)" = "$(sed -n 's/^full_flox_image_id=//p' image-metadata.txt)"
+          test "$(docker image inspect --format '{{.Id}}' senshac-runner:minimal-flox-pr)" = "$(sed -n 's/^minimal_flox_image_id=//p' image-metadata.txt)"
       - name: Verify all producer outputs
         env:
           CONTAINER_RUNTIME: docker

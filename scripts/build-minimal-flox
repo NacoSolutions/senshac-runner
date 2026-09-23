@@ -7,7 +7,9 @@ target="${1:-senshac-runner:minimal-flox}"
 environment="$repo/.flox/ci"
 source_image="senshac-runner-minimal:minimal-ci"
 
-"$repo/scripts/check-flox-lock" "$environment"
+if [[ "${SKIP_FLOX_LOCK_CHECK:-0}" != 1 ]]; then
+  "$repo/scripts/check-flox-lock" "$environment"
+fi
 lock_before="$(sha256sum "$environment/manifest.lock")"
 # Flox containerize consumes the conventional project/.flox/env location. Stage
 # the separately locked comparison manifest without touching the full project.
