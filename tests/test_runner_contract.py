@@ -8,6 +8,10 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+REQUIRED_SMOKE_TOOLS = (
+    "tar", "gzip", "git", "gh", "sd", "ml", "tr", "tl", "bun", "node",
+    "gcc", "unzip",
+)
 
 
 class RunnerContractTests(unittest.TestCase):
@@ -35,6 +39,16 @@ class RunnerContractTests(unittest.TestCase):
     def test_resolved_lock_passes(self):
         result = self.run_script("check-flox-lock")
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_runner_smoke_checks_required_tools_with_loop(self):
+        script = (ROOT / "scripts/verify-ci-runner").read_text()
+        loop = next(
+            line.strip() for line in script.splitlines()
+            if line.strip().startswith("for tool in ")
+        )
+        tools = tuple(loop.removeprefix("for tool in ").removesuffix("; do").split())
+        self.assertEqual(tools, REQUIRED_SMOKE_TOOLS)
+        self.assertIn('command -v "$tool"', script)
 
     def test_missing_tar_resolution_fails(self):
         self.mutate_lock(lambda lock: lock.update(
