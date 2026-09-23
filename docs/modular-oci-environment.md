@@ -19,7 +19,9 @@ replace Flox containerization yet.
 
 The selected closure is intentionally limited to the current CI boundary:
 Bash, core utilities, curl, findutils, GNU grep/tar/gzip, unzip, jq, git, gh,
-Bun, Node.js, and CA certificates. Developer-only tools (Act, formatters,
+Bun, Node.js, and CA certificates. The image also contains the tiny
+`flox-bootstrap` and `senshac-runtime` profile scripts, but not the Flox
+binary or the legacy environment. Developer-only tools (Act, formatters,
 linters, Seeds/Mulch/Trellis, Cloudflare tooling, and interactive utilities)
 stay in Flox and are not copied into this image.
 
@@ -50,6 +52,29 @@ scripts/check-oci-flake
 This check evaluates both exported packages and builds the
 `oci-closure-metadata` check. It requires Nix, but does not require a daemon,
 registry credentials, or a container runtime.
+
+## Runtime profiles
+
+The image defaults to `SENSHAC_RUNTIME_PROFILE=minimal`. This profile forwards
+the command without invoking Flox, a resolver, or a package manager, so
+minimal CI has no silent network dependency. The verification contract is
+`scripts/verify-nix-base IMAGE`.
+
+Use the optional runtime overlay when a project needs its Flox environment:
+mount the checkout (including `.flox/env/manifest.lock`), provide a pinned Flox
+binary on `PATH`, and set `SENSHAC_RUNTIME_PROFILE=flox` plus `FLOX_PROJECT`.
+The entrypoint validates the lockfile and runs `flox activate`; it does not
+install Flox or mutate the lock. Prefer a pre-warmed Flox/Nix cache in CI and
+fail cache misses explicitly in the job that prepares the environment. This
+keeps the base image immutable and avoids rebuilding it for each repository.
+
+Example:
+
+```sh
+docker run --rm -e SENSHAC_RUNTIME_PROFILE=flox -e FLOX_PROJECT=/workspace \\
+  -v "$PWD:/workspace" -v "$HOME/.local/bin/flox:/usr/local/bin/flox:ro" \\
+  senshac-runner-oci:modular bash -lc 'command -v bun'
+```
 
 ## Caches and migration boundary
 
@@ -88,8 +113,13 @@ The table reports:
 - **Flox runtime image size:** the `Size` value returned by the container
   runtime's `image inspect`, representing the engine's unpacked/virtual image
   size.
-- **Nix archive size:** the byte count of the `ociImage` archive on disk,
-  measured with `wc -c`.
+- **Nix base:** the byte count of the `ociImage` archive on disk, measured
+  with `wc -c`.
+- **Nix base + Flox environment:** the runtime-mounted overlay contribution.
+  It is measured separately and does not copy the legacy environment into the
+  Nix image.
+- **Current full Flox baseline:** the compressed `runtime save` stream of the
+  existing published-style image.
 - **Loaded Nix runtime image size (optional):** the runtime's `image inspect`
   `Size` after loading the archive, when the selected runtime supports load.
 

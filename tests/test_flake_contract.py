@@ -12,9 +12,18 @@ class FlakeContractTests(unittest.TestCase):
         self.assertIn("ciTools = pkgs.buildEnv", FLAKE)
         self.assertIn("ociImage = pkgs.dockerTools.buildLayeredImage", FLAKE)
         self.assertIn("inherit ciTools ociImage", FLAKE)
+        self.assertIn('floxBootstrap = pkgs.writeShellScriptBin "flox-bootstrap"', FLAKE)
+        self.assertIn('runtimeProfile = pkgs.writeShellScriptBin "senshac-runtime"', FLAKE)
+
+    def test_runtime_profiles_keep_flox_out_of_minimal_path(self):
+        self.assertIn("mode=\"''${SENSHAC_RUNTIME_PROFILE:-minimal}\"", FLAKE)
+        self.assertIn('minimal_network=disabled', FLAKE)
+        self.assertIn('exec flox activate -d "$project"', FLAKE)
+        minimal = FLAKE.split('minimal)', 1)[1].split('flox)', 1)[0]
+        self.assertNotIn('flox activate', minimal)
 
     def test_image_has_no_base_image_or_dockerfile_dependency(self):
-        self.assertIn("contents = [ ciTools pkgs.cacert ];", FLAKE)
+        self.assertIn("contents = [ ciTools floxBootstrap runtimeProfile pkgs.cacert ];", FLAKE)
         self.assertIn("base_image=none", FLAKE)
         self.assertNotIn("FROM ", FLAKE)
         self.assertNotIn("docker build", FLAKE)
@@ -50,6 +59,9 @@ class FlakeContractTests(unittest.TestCase):
             'ci_tools=${ciTools}',
             'image_tarball=${ociImage}',
             'selected_tools=bash bun cacert coreutils curl findutils gh git gnugrep gnutar gzip jq nodejs_22 unzip',
+            'runtime_profiles=minimal,flox',
+            'flox_environment=runtime-mounted,pinned-lock-required',
+            'minimal_network=disabled',
             'base_image=none',
         ):
             with self.subTest(line=line):
