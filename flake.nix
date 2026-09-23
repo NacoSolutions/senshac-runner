@@ -65,13 +65,13 @@
             nativeBuildInputs = [ pkgs.coreutils ];
           } ''
             mkdir -p "$out"
-            cat > "$out/metadata" <<EOF
-            image=senshac-runner-oci:modular
-            ci_tools=${ciTools}
-            image_tarball=${ociImage}
-            selected_tools=bash bun cacert coreutils curl findutils gh git gnugrep gnutar gzip jq nodejs_22 unzip
-            base_image=none
-            EOF
+            printf '%s\n' \
+              'image=senshac-runner-oci:modular' \
+              'ci_tools=${ciTools}' \
+              'image_tarball=${ociImage}' \
+              'selected_tools=bash bun cacert coreutils curl findutils gh git gnugrep gnutar gzip jq nodejs_22 unzip' \
+              'base_image=none' \
+              > "$out/metadata"
           '';
         });
     };

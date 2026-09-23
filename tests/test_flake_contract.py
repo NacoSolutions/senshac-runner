@@ -36,6 +36,19 @@ class FlakeContractTests(unittest.TestCase):
                 )
         self.assertEqual(OCI_CHECK_SCRIPT.count("--no-write-lock-file"), 4)
 
+    def test_metadata_writer_preserves_exact_contract_lines(self):
+        self.assertIn("printf '%s\\n' \\", FLAKE)
+        self.assertNotIn('<<EOF', FLAKE)
+        for line in (
+            'image=senshac-runner-oci:modular',
+            'ci_tools=${ciTools}',
+            'image_tarball=${ociImage}',
+            'selected_tools=bash bun cacert coreutils curl findutils gh git gnugrep gnutar gzip jq nodejs_22 unzip',
+            'base_image=none',
+        ):
+            with self.subTest(line=line):
+                self.assertIn(f"'{line}'", FLAKE)
+
     def test_developer_only_tools_are_not_in_selected_closure(self):
         selected = FLAKE.split("paths = with pkgs; [", 1)[1].split("            ];", 1)[0]
         selected_tools = set(selected.split())
