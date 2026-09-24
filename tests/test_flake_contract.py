@@ -12,7 +12,10 @@ VERIFY_WORKFLOW = (ROOT / ".github/workflows/verify-ci-runner.yml").read_text()
 class FlakeContractTests(unittest.TestCase):
     def test_exports_one_docker_tools_image_and_minimal_base(self):
         self.assertIn("baseRuntime = pkgs.buildEnv", FLAKE)
-        self.assertIn("paths = with pkgs; [ bashInteractive cacert coreutils flox ];", FLAKE)
+        self.assertIn('inputs.flox.url = "github:flox/flox/486737b3e68b0f094e89b4b3e27260e9f6c91b4a";', FLAKE)
+        self.assertIn("flox.packages.${pkgs.system}.flox", FLAKE)
+        self.assertNotIn("pkgs.flox", FLAKE)
+        self.assertNotIn("coreutils flox ];", FLAKE)
         self.assertIn("ociImage = pkgs.dockerTools.buildLayeredImage", FLAKE)
         self.assertIn("inherit baseRuntime ociImage", FLAKE)
         self.assertNotIn("ciTools", FLAKE)
