@@ -22,7 +22,9 @@ if [[ "${SKIP_FLOX_LOCK_CHECK:-0}" != 1 ]]; then
   "$repo/scripts/check-flox-lock"
 fi
 
-nix_cmd=(nix --extra-experimental-features 'nix-command flakes')
+# Use the official cache declared by the pinned Flox release rather than
+# compiling the Rust-based Flox closure on the image builder.
+nix_cmd=(nix --accept-flake-config --extra-experimental-features 'nix-command flakes')
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 archive="$tmp/senshac-runner-oci.tar.gz"

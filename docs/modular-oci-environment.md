@@ -21,7 +21,11 @@ The image closure contains only the base shell/runtime, the pinned Flox
 CLI/runtime, CA certificates, and the activation wrapper. Bun, Chromium,
 Node.js, GNU tar, and every other project tool are resolved by the mounted
 project's committed `.flox/env/manifest.lock`; no hand-maintained tool list is
-duplicated in the flake.
+duplicated in the flake. The image build never evaluates the developer-only
+custom Flox inputs (Canopy, Cloudflare CLI, Knip, Mulch, Seeds, Terrarium, or
+Trellis), so their Cargo/Rust closures do not become OCI build inputs. Runtime
+activation still uses the complete project lock and preserves the existing CI
+tool checks.
 
 ## Evaluate and inspect
 
@@ -30,8 +34,8 @@ explicitly enabled (this also works when it is not enabled in global Nix
 configuration):
 
 ```bash
-nix --extra-experimental-features 'nix-command flakes' flake check --no-write-lock-file
-nix --extra-experimental-features 'nix-command flakes' build --no-write-lock-file .#ociImage
+nix --accept-flake-config --extra-experimental-features 'nix-command flakes' flake check --no-write-lock-file
+nix --accept-flake-config --extra-experimental-features 'nix-command flakes' build --no-write-lock-file .#ociImage
 ```
 
 The public `ociImage` output is a Docker-compatible archive suitable for
@@ -67,12 +71,30 @@ docker run --rm -e FLOX_PROJECT=/workspace \\
   flox activate -- command -v bun
 ```
 
-## Caches and migration boundary
+## Official Flox cache and Cargo measurement
 
-Nix may use the configured binary cache for `nixpkgs` and substitutes. A cache
-miss realizes the selected closure locally; the image remains deterministic
-for the pinned flake input and system. No registry cache or Docker base image
-is assumed. The existing Flox lockfile and cache behavior are independent.
+The flake pins the released Flox flake and declares Flox's official
+`cache.flox.dev` substituter and public key through `nixConfig`. The validation
+scripts pass `--accept-flake-config`, which is required on generic Nix hosts;
+this prevents the Flox CLI and patched Nix Rust closure from being built from
+source when the flake configuration would otherwise be ignored.
+
+To inspect the exact producer closure and identify an unexpected Rust input, run
+these commands after `nix flake check`:
+
+```bash
+nix --accept-flake-config --extra-experimental-features 'nix-command flakes' \
+  path-info --recursive --closure-size .#ociImage
+nix --accept-flake-config --extra-experimental-features 'nix-command flakes' \
+  why-depends .#ociImage '<rust-or-cargo-store-path>'
+```
+
+The expected closure contains the pinned Flox runtime but no project package
+paths. Custom Flox inputs remain in the committed project lock for developer
+activation; they are not dependencies of `ociImage`, so dev-only Cargo work is
+not resolved while producing the CI image. A cache miss realizes only the
+selected immutable closure locally; no registry cache or Docker base image is
+assumed.
 
 ## Canary status and limitations
 
