@@ -5,6 +5,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 FLAKE = (ROOT / "flake.nix").read_text()
 OCI_CHECK_SCRIPT = (ROOT / "scripts/check-oci-flake").read_text()
+VERIFY_WORKFLOW = (ROOT / ".github/workflows/verify-ci-runner.yml").read_text()
 
 
 class FlakeContractTests(unittest.TestCase):
@@ -67,6 +68,15 @@ class FlakeContractTests(unittest.TestCase):
         ):
             with self.subTest(line=line):
                 self.assertIn(f"'{line}'", FLAKE)
+
+    def test_runner_has_one_canonical_producer_path(self):
+        self.assertIn("scripts/check-oci-flake", VERIFY_WORKFLOW)
+        self.assertIn("needs: build-image", VERIFY_WORKFLOW)
+        for stale_path in ("build-minimal-flox", "verify-minimal-flox", ".flox/ci", "flox containerize"):
+            with self.subTest(stale_path=stale_path):
+                self.assertNotIn(stale_path, VERIFY_WORKFLOW)
+        self.assertNotIn("flox/install-flox-action", VERIFY_WORKFLOW)
+        self.assertNotIn("docker build", VERIFY_WORKFLOW)
 
     def test_developer_only_tools_are_not_in_selected_closure(self):
         selected = FLAKE.split("paths = with pkgs; [", 1)[1].split("            ];", 1)[0]
