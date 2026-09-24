@@ -4,81 +4,35 @@ set -euo pipefail
 repo="$(git rev-parse --show-toplevel)"
 runtime="${CONTAINER_RUNTIME:-podman}"
 target="${1:-senshac-ci-runner:latest}"
-source_image="senshac-runner:ci-runner"
-final_image="senshac-runner:ci-runner-tar"
-current_group=""
 
-log() {
-  printf '[%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"
+require() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "Missing prerequisite: $1" >&2
+    exit 2
+  }
 }
 
-end_group() {
-  if [[ -n "$current_group" ]]; then
-    echo "::endgroup::"
-    current_group=""
-  fi
-}
+require nix
+require "$runtime"
 
-start_group() {
-  end_group
-  current_group="$1"
-  echo "::group::[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $1"
-}
-
-trap end_group EXIT
-
-# Flox accepts the bare tag and names the generated image from the project
-# name. Retag that image with the selected runtime for the requested target.
-start_group "Flox containerize"
+# Flox remains the package contract and is checked before Nix assembles the
+# immutable OCI closure. The image itself is deliberately produced only by
+# dockerTools; it never invokes the Flox container builder or apt-get.
 if [[ "${SKIP_FLOX_LOCK_CHECK:-0}" != 1 ]]; then
   "$repo/scripts/check-flox-lock"
 fi
-flox --version
-lock_before="$(sha256sum "$repo/.flox/env/manifest.lock")"
-log "Starting Flox containerize with runtime ${runtime}"
-# Keep build output line-buffered so failures and progress are visible in CI.
-stdbuf -oL -eL flox -vv containerize -d "$repo" --runtime "$runtime" --tag ci-runner
-if [[ "$(sha256sum "$repo/.flox/env/manifest.lock")" != "$lock_before" ]]; then
-  echo 'Flox changed the lockfile during construction; commit the reconciled lock and rebuild' >&2
-  exit 1
-fi
-log "Flox containerize produced ${source_image}"
 
-start_group "Expose tar in final image"
-log "Inspecting tar candidates in the Flox image"
-"$runtime" run --rm --entrypoint /bin/sh "$source_image" -c \
-  'printf "PATH=%s\\n" "$PATH"; command -v tar || true; command -v gtar || true; find /nix/store -maxdepth 3 \( -type f -o -type l \) -path "*/bin/tar" -print; find /nix/store -maxdepth 3 \( -type f -o -type l \) -path "*/bin/gtar" -print'
-
+nix_cmd=(nix --extra-experimental-features 'nix-command flakes')
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"; end_group' EXIT
-cat >"$tmp/Containerfile" <<EOF
-FROM $source_image
-RUN ["/bin/mkdir", "-p", "/usr/bin"]
-RUN ["/bin/sh", "-c", "set -eu; tar_path=\$(command -v tar 2>/dev/null || true); if [ -z \"\$tar_path\" ]; then tar_path=\$(command -v gtar 2>/dev/null || true); fi; if [ -z \"\$tar_path\" ]; then for candidate in /nix/store/*/bin/tar /nix/store/*/bin/gtar; do if [ -x \"\$candidate\" ]; then tar_path=\"\$candidate\"; break; fi; done; fi; test -n \"\$tar_path\"; test -x \"\$tar_path\"; /bin/rm -f /usr/bin/tar; /bin/cp -L \"\$tar_path\" /usr/bin/tar; /bin/chmod 0755 /usr/bin/tar; /usr/bin/tar --version >/dev/null"]
-RUN ["/bin/ln", "-sf", "/bin/env", "/usr/bin/env"]
-RUN ["/bin/sh", "-c", "set -- /nix/store/*-glibc-*/lib/ld-linux-x86-64.so.2; test -e \"\$1\"; /bin/ln -s \"\${1%/*}\" /lib64"]
-RUN ["/bin/mkdir", "-p", "/usr/lib"]
-RUN ["/bin/sh", "-c", "lib=\$(gcc -print-file-name=libstdc++.so.6); test -e \"\$lib\"; /bin/ln -sf \"\$lib\" /usr/lib/libstdc++.so.6"]
-RUN ["/bin/sh", "-c", "lib=\$(gcc -print-file-name=libgcc_s.so.1); test -e \"\$lib\"; /bin/ln -sf \"\$lib\" /usr/lib/libgcc_s.so.1"]
-ENV HOME=/tmp XDG_CONFIG_HOME=/tmp/.config
-ENV LD_LIBRARY_PATH=/usr/lib
-ENV SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt
-ENV NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt
-ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-bundle.crt
-EOF
-"$runtime" build -f "$tmp/Containerfile" -t "$final_image" "$tmp"
+trap 'rm -rf "$tmp"' EXIT
+archive="$tmp/senshac-runner-oci.tar.gz"
 
-start_group "Verify portable tar"
-log "Verifying the derived image resolves /usr/bin/tar with ${runtime}"
-"$runtime" run --rm --entrypoint /bin/sh "$final_image" -c \
-  'set -eu; test "$(command -v tar)" = /usr/bin/tar; test -x /usr/bin/tar; /usr/bin/tar --version'
+printf 'Building Nix dockerTools OCI image: %s\n' "$target"
+"${nix_cmd[@]}" build --no-write-lock-file --out-link "$archive" "$repo#ociImage"
 
-start_group "Runtime retagging"
-log "Checking final image ${final_image}"
-if ! "$runtime" image inspect "$final_image" >/dev/null 2>&1; then
-  echo "Tar exposure build did not produce the expected image: $final_image" >&2
-  exit 1
-fi
-log "Retagging ${final_image} as ${target}"
-"$runtime" tag "$final_image" "$target"
-log "Published local target ${target}"
+printf 'Loading immutable OCI archive with %s\n' "$runtime"
+"$runtime" load --input "$archive"
+source="senshac-runner-oci:modular"
+"$runtime" image inspect "$source" >/dev/null
+"$runtime" tag "$source" "$target"
+printf 'Published local image %s from %s\n' "$target" "$source"

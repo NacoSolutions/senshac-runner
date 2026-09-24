@@ -12,6 +12,9 @@ on:
       - "scripts/check-flox-lock"
       - "scripts/smoke-ci-runner"
       - "scripts/verify-ci-runner"
+      - "scripts/verify-nix-base"
+      - "scripts/check-oci-flake"
+      - "flake.nix"
   workflow_dispatch:
 
 # A merge creates one main push. A newer merge supersedes an in-flight
@@ -38,9 +41,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
 
-      - uses: flox/install-flox-action@v2.5.3
+      - uses: cachix/install-nix-action@v31
         with:
-          version: '1.16.0'
+          extra_nix_config: |
+            experimental-features = nix-command flakes
 
       - name: Log in to the Container registry
         uses: docker/login-action@v4.5.1
@@ -52,15 +56,15 @@ jobs:
       - name: Build CI runner image
         run: |
           image="${REGISTRY}/${IMAGE_NAME}"
-          echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Starting Flox build and runtime retagging"
+          echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Starting Nix dockerTools build"
           CONTAINER_RUNTIME=docker scripts/build-ci-runner "${image}:sha-${GITHUB_SHA}"
-          echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Flox build and runtime retagging complete"
+          echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Nix OCI build and runtime retagging complete"
 
       - name: Verify local image before publication
         run: |
           set -eu
           image="${REGISTRY}/${IMAGE_NAME}:sha-${GITHUB_SHA}"
-          CONTAINER_RUNTIME=docker scripts/smoke-ci-runner "$image"
+          CONTAINER_RUNTIME=docker scripts/verify-nix-base "$image"
           docker save "$image" -o "$RUNNER_TEMP/published-runner-image.tar"
           sha256sum "$RUNNER_TEMP/published-runner-image.tar" > "$RUNNER_TEMP/published-runner-image.sha256"
           {
@@ -96,7 +100,7 @@ jobs:
           docker image rm "${immutable}"
           docker pull "${immutable}"
           echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Running activated-environment smoke test"
-          CONTAINER_RUNTIME=docker scripts/smoke-ci-runner "${immutable}"
+          CONTAINER_RUNTIME=docker scripts/verify-nix-base "${immutable}"
           digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${immutable}")"
           case "$digest" in
             *@sha256:*) ;;

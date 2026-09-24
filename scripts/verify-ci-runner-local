@@ -13,7 +13,7 @@ require() {
 }
 
 require podman
-require flox
+require nix
 
 # The image build itself talks to Podman locally, but starting the user socket
 # here makes the resulting image immediately usable by scripts/act-ci too.

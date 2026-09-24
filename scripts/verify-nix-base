@@ -21,11 +21,18 @@ repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
     [ -x "$runtime_profile" ] || fail "senshac-runtime is not executable: ${runtime_profile:-not found}"
     bash_path="$(command -v bash 2>/dev/null || true)"
     [ -n "$bash_path" ] || fail "missing command: bash"
+    bun_path="$(command -v bun 2>/dev/null || true)"
+    [ -n "$bun_path" ] || fail "missing command: bun"
+    chromium_path="$(command -v chromium 2>/dev/null || true)"
+    [ -n "$chromium_path" ] || fail "missing command: chromium"
+    chromium --headless --no-sandbox --disable-gpu --dump-dom \
+      'data:text/html,<title>senshac-runner</title>' 2>/dev/null \
+      | grep -q '<title>senshac-runner</title>' || fail "headless Chromium launch failed"
     cert="${SSL_CERT_FILE:-}"
     [ -n "$cert" ] || fail "SSL_CERT_FILE is unset"
     [ -s "$cert" ] || fail "SSL_CERT_FILE is not a non-empty file: $cert"
     [ "${SENSHAC_RUNTIME_PROFILE:-}" = minimal ] || fail "unexpected runtime profile: ${SENSHAC_RUNTIME_PROFILE:-unset}"
-    printf "NIX_BASE_MINIMAL_PATHS: flox-bootstrap=%s senshac-runtime=%s bash=%s\n" "$bootstrap" "$runtime_profile" "$bash_path"
+    printf "NIX_BASE_MINIMAL_PATHS: flox-bootstrap=%s senshac-runtime=%s bash=%s bun=%s chromium=%s\n" "$bootstrap" "$runtime_profile" "$bash_path" "$bun_path" "$chromium_path"
     printf "NIX_BASE_MINIMAL_CERT: %s\n" "$cert"
     printf "%s\n" NIX_BASE_MINIMAL_OK
   '
