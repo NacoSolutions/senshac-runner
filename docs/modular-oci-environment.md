@@ -58,10 +58,13 @@ registry credentials, or a container runtime.
 
 The entrypoint contains the Flox CLI and always activates the mounted project.
 It requires `.flox/env/manifest.lock`, runs `flox activate`, and never installs
-packages or mutates the lock. `scripts/verify-nix-base IMAGE` mounts this
-repository and verifies `flox activate -- command -v bun`, `flox activate --
-command -v chromium`, and a headless Chromium launch. Prefer a pre-warmed
-Flox/Nix cache in CI; the image itself remains minimal and immutable.
+packages or mutates the lock. Because `dockerTools` supplies no distribution
+base, the image explicitly provides `/usr/bin/env`, which is required by the
+Flox activation shebang contract. `scripts/verify-nix-base IMAGE` checks that
+runtime path before mounting this repository and verifying `flox activate --
+command -v bun`, `flox activate -- command -v chromium`, and a headless
+Chromium launch. Prefer a pre-warmed Flox/Nix cache in CI; the image itself
+remains minimal and immutable.
 
 Example:
 

@@ -33,6 +33,8 @@ class FlakeContractTests(unittest.TestCase):
 
     def test_image_has_no_other_builder_or_base_image(self):
         self.assertIn("contents = [ baseRuntime activationWrapper pkgs.cacert ];", FLAKE)
+        self.assertIn("extraCommands = ''", FLAKE)
+        self.assertIn("ln -s ${pkgs.coreutils}/bin/env ./usr/bin/env", FLAKE)
         self.assertIn("'image_builder=dockerTools.buildLayeredImage'", FLAKE)
         self.assertIn("'base_image=none'", FLAKE)
         self.assertNotIn("FROM ", FLAKE)
@@ -49,6 +51,8 @@ class FlakeContractTests(unittest.TestCase):
         self.assertNotIn(".#ciTools", OCI_CHECK_SCRIPT)
 
     def test_mounted_project_verification_is_realistic(self):
+        self.assertIn('--entrypoint /usr/bin/env', VERIFY_SCRIPT)
+        self.assertIn("run_image bash -c 'test -x /usr/bin/env && command -v bash'", VERIFY_SCRIPT)
         self.assertIn('run_flox command -v bun', VERIFY_SCRIPT)
         self.assertIn('run_flox command -v chromium', VERIFY_SCRIPT)
         self.assertIn('run_flox chromium --headless --no-sandbox', VERIFY_SCRIPT)

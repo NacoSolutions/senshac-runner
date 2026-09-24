@@ -60,6 +60,14 @@
             name = "senshac-runner-oci";
             tag = "modular";
             contents = [ baseRuntime activationWrapper pkgs.cacert ];
+            # Flox activation scripts use the conventional env shebang. Nix
+            # store paths alone provide /bin/env, while container runtimes
+            # resolve that shebang as /usr/bin/env; provide the runtime path
+            # explicitly instead of relying on a base image.
+            extraCommands = ''
+              mkdir -p ./usr/bin
+              ln -s ${pkgs.coreutils}/bin/env ./usr/bin/env
+            '';
             config = {
               Entrypoint = [ "${activationWrapper}/bin/senshac-activate" ];
               Cmd = [ "${pkgs.bashInteractive}/bin/bash" ];
