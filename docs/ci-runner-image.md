@@ -39,7 +39,7 @@ CONTAINER_RUNTIME=docker dx scripts/build-ci-runner ghcr.io/nacosolutions/sensha
 
 ## Local no-push verification
 
-For the fast, registry-free build and smoke test, install Flox and rootless
+For the fast, registry-free build and smoke test, install Nix and rootless
 Podman, then run:
 
 ```bash
@@ -151,10 +151,10 @@ metadata changes do not allocate runner/image jobs.
 
 The PR image workflow and the post-merge publication workflow intentionally do
 not trigger each other. The PR workflow does not publish, and the main
-workflow does not run the full PR validation suite again. The publication
-workflow retains its registry pull-and-smoke step because it proves the exact
-immutable digest that consumers pin; the local pre-push smoke step catches a
-bad build before publication.
+workflow does not run the full PR validation suite again. Both workflows use
+`flake.nix` and `pkgs.dockerTools`; the publication workflow retains its
+registry pull-and-smoke step because it proves the exact immutable digest that
+consumers pin.
 
 ## Producer/consumer handoff
 
@@ -163,13 +163,12 @@ registry digest and exposes the full immutable image reference in two places:
 
 ### Build once, verify by artifact
 
-The pull-request workflow has one `build-images` producer job. It builds the
-full Flox image, minimal Flox image, and public Nix `ociImage` exactly once,
-then uploads Docker-compatible archives. The dependent `verify-image` job
-only downloads and loads those archives; it never invokes `flox containerize`
-or `nix build`. This keeps the handoff independent of a Docker daemon shared
-between jobs while ensuring measurements and smoke tests use the producer's
-exact bytes.
+The pull-request workflow has one `build-image` producer job. It builds the
+public Nix `ociImage` exactly once, then uploads its Docker-compatible archive.
+The dependent `verify-image` job only downloads and loads that archive; it
+never rebuilds the image. This keeps the handoff independent of a Docker
+daemon shared between jobs while ensuring smoke tests use the producer's exact
+bytes.
 
 For reuse across workflows, publish the archive or image to a content-addressed
 registry reference and pass its `@sha256:` digest as an explicit job input.

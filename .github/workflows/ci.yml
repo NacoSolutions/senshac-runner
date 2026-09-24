@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - '.flox/env/**'
-      - '.flox/ci/**'
       - '.github/workflows/**'
       - 'scripts/**'
       - 'tests/**'
