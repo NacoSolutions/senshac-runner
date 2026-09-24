@@ -9,7 +9,10 @@ if ! command -v nix >/dev/null 2>&1; then
   exit 2
 fi
 
-nix_cmd=(nix --extra-experimental-features 'nix-command flakes')
+# Accept the pinned flake's official cache declaration. Without this flag,
+# generic Nix installations ignore cache.flox.dev and compile Flox's Rust
+# closure locally.
+nix_cmd=(nix --accept-flake-config --extra-experimental-features 'nix-command flakes')
 "${nix_cmd[@]}" flake check --no-write-lock-file
 
 assert_output() {

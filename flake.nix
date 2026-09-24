@@ -1,10 +1,21 @@
 {
   description = "Senshac Runner's Flox activation OCI image";
 
+  # Flox publishes its CLI and patched Nix closure in this cache. Keep the
+  # cache declaration in the flake so generic Nix installations use the same
+  # official substitution model as Flox's installer.
+  nixConfig = {
+    extra-substituters = [ "https://cache.flox.dev" ];
+    extra-trusted-public-keys = [
+      "flox-cache-public-1:7F4OyH7ZCnFhcze3fJdfyXYLQw/aV7GEed86nQ7IsOs="
+    ];
+  };
+
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
-  # Flox is not distributed by nixpkgs. Pin the supported upstream package
-  # instead of relying on an attribute that nixpkgs does not provide.
-  inputs.flox.url = "github:flox/flox/486737b3e68b0f094e89b4b3e27260e9f6c91b4a";
+  # Flox is not distributed by nixpkgs. Pin an upstream release rather than a
+  # moving branch or source revision; its published closure is substituted
+  # from cache.flox.dev instead of compiling the Rust CLI locally.
+  inputs.flox.url = "github:flox/flox/v1.9.1";
 
   outputs = { self, nixpkgs, flox }:
     let
