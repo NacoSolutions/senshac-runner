@@ -29,12 +29,14 @@ class FlakeContractTests(unittest.TestCase):
         self.assertIn('exec flox activate -d "$project" -- "$@"', FLAKE)
         self.assertIn("if [ \"''${1:-}\" = flox ] && [ \"''${2:-}\" = activate ]; then", FLAKE)
         self.assertIn("FLOX_PROJECT=/workspace", FLAKE)
+        self.assertIn('PATH=/usr/local/bin:/usr/bin:/bin:', FLAKE)
         self.assertIn("'activation=mounted-project-manifest-lock'", FLAKE)
 
     def test_image_has_no_other_builder_or_base_image(self):
         self.assertIn("contents = [ baseRuntime activationWrapper pkgs.cacert ];", FLAKE)
         self.assertIn("extraCommands = ''", FLAKE)
         self.assertIn("ln -s ${pkgs.coreutils}/bin/env ./usr/bin/env", FLAKE)
+        self.assertIn("ln -s ${pkgs.bashInteractive}/bin/bash ./usr/bin/bash", FLAKE)
         self.assertIn("'image_builder=dockerTools.buildLayeredImage'", FLAKE)
         self.assertIn("'base_image=none'", FLAKE)
         self.assertNotIn("FROM ", FLAKE)
@@ -52,9 +54,10 @@ class FlakeContractTests(unittest.TestCase):
 
     def test_mounted_project_verification_is_realistic(self):
         self.assertIn('--entrypoint /usr/bin/env', VERIFY_SCRIPT)
-        self.assertIn("run_image bash -c 'test -x /usr/bin/env && command -v bash'", VERIFY_SCRIPT)
+        self.assertIn("test -x /usr/bin/env && test -x /usr/bin/bash", VERIFY_SCRIPT)
         self.assertIn('run_flox command -v bun', VERIFY_SCRIPT)
         self.assertIn('run_flox command -v chromium', VERIFY_SCRIPT)
+        self.assertIn('flox activate -- "$@"', VERIFY_SCRIPT)
         self.assertIn('run_flox chromium --headless --no-sandbox', VERIFY_SCRIPT)
         self.assertIn('--volume "$repo:/workspace:ro"', VERIFY_SCRIPT)
         self.assertIn('"$image" flox activate -- "$@"', VERIFY_SCRIPT)
