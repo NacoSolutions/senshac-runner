@@ -6,6 +6,20 @@ image="${1:?Usage: scripts/verify-nix-base IMAGE}"
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Every non-base tool comes from the mounted project's committed Flox lock.
+run_image() {
+  "$runtime" run --rm --pull=never \
+    --entrypoint /usr/bin/env \
+    --volume "$repo:/workspace:ro" \
+    -e FLOX_PROJECT=/workspace \
+    "$image" "$@"
+}
+
+# Fail with the missing runtime path rather than an opaque activation error.
+# The dockerTools image has no base distribution, so /usr/bin/env is part of
+# its explicit shebang contract.
+printf 'Checking image runtime contract: /usr/bin/env\n'
+run_image bash -c 'test -x /usr/bin/env && command -v bash'
+
 run_flox() {
   "$runtime" run --rm --pull=never \
     --volume "$repo:/workspace:ro" \
