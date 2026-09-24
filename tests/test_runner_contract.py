@@ -10,7 +10,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_SMOKE_TOOLS = (
     "tar", "gzip", "git", "gh", "sd", "ml", "tr", "tl", "bun", "node",
-    "gcc", "unzip",
+    "gcc", "unzip", "chromium",
 )
 
 
@@ -49,6 +49,8 @@ class RunnerContractTests(unittest.TestCase):
         tools = tuple(loop.removeprefix("for tool in ").removesuffix("; do").split())
         self.assertEqual(tools, REQUIRED_SMOKE_TOOLS)
         self.assertIn('command -v "$tool"', script)
+        self.assertIn("chromium --headless --no-sandbox", script)
+        self.assertIn("<title>senshac-runner</title>", script)
 
     def test_missing_tar_resolution_fails(self):
         self.mutate_lock(lambda lock: lock.update(

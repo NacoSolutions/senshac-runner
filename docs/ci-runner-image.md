@@ -61,7 +61,10 @@ read-only and runs it by file path through Flox's image entrypoint. It first
 requires a deliberate exit-42 probe, then requires the successful check's
 completion marker. This verifies both execution and failure propagation.
 The standalone activation contract is `FLOX_ENV/bin` on `PATH`; the host
-project path and host Flox CLI belong to the build environment.
+project path and host Flox CLI belong to the build environment. A valid
+activated image resolves both `bun` and `chromium`; the smoke check launches
+Chromium headlessly against a data URL to verify its packaged runtime
+libraries.
 
 The script attempts to start the user Podman socket with
 `systemctl --user start podman.socket` and exports `DOCKER_HOST` when the
@@ -95,13 +98,18 @@ new image before expecting GitHub CI to use new tools. The runner contract
 requires `tar` to be available on `PATH`; `actions/setup-node` uses it to
 extract the Node distribution. The manifest installs Flox's `gnutar` and
 `gzip` packages, and the smoke test round-trips a gzip-compressed archive
-with `--strip-components=1`.
+with `--strip-components=1`. The manifest also installs `chromium`; its Nix
+package supplies the browser runtime closure, including graphics, font, and
+X/Wayland libraries, without apt-get, a browser download, or a second image
+install.
 
 Use the Flox CLI to reconcile package changes and commit both manifest and
 lockfile. `scripts/check-flox-lock` checks manifest equality and resolved
 package outputs for each requested system before image construction.
 A manifest declaration alone is insufficient: the original missing-tar
 failure came from an unresolved `gnutar` entry in the committed lockfile.
+Keep Chromium's manifest and committed lock entry together; runtime checks use
+the activated PATH rather than installing browsers or libraries.
 Local Flox repaired that entry automatically, making the earlier local/CI
 comparison use different inputs. Runtime differences remain a separate
 verification question.

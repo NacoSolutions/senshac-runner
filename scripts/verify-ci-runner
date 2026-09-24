@@ -15,7 +15,7 @@ case ":$PATH:" in
   *":$FLOX_ENV/bin:"*) ;;
   *) echo 'Activated Flox bin directory missing from PATH' >&2; exit 1 ;;
 esac
-for tool in tar gzip git gh sd ml tr tl bun node gcc unzip; do
+for tool in tar gzip git gh sd ml tr tl bun node gcc unzip chromium; do
   command -v "$tool"
 done
 tar_path="$(command -v tar)"
@@ -45,4 +45,7 @@ request.setTimeout(20000, () => request.destroy(new Error("TLS probe timed out")
 NODE
 
 bun --eval 'const response = await fetch("https://github.com", {signal: AbortSignal.timeout(20000)}); if (!response.ok) process.exit(1);'
+printf 'Checking headless Chromium\n'
+chromium --headless --no-sandbox --disable-gpu --dump-dom 'data:text/html,<title>senshac-runner</title>' \
+  2>/dev/null | grep -q '<title>senshac-runner</title>'
 echo SENSHAC_RUNNER_SMOKE_OK
