@@ -15,10 +15,11 @@ run_image() {
 }
 
 # Fail with the missing runtime path rather than an opaque activation error.
-# The dockerTools image has no base distribution, so /usr/bin/env is part of
-# its explicit shebang contract.
-printf 'Checking image runtime contract: /usr/bin/env\n'
-run_image bash -c 'test -x /usr/bin/env && command -v bash'
+# The dockerTools image has no base distribution. Flox activation uses the
+# conventional absolute shell path as well as env-based shebangs, so verify
+# both runtime paths before attempting activation.
+printf 'Checking image runtime contract: /usr/bin/env and /usr/bin/bash\n'
+run_image bash -c 'test -x /usr/bin/env && test -x /usr/bin/bash && command -v bash'
 
 run_flox() {
   "$runtime" run --rm --pull=never \

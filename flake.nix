@@ -60,19 +60,24 @@
             name = "senshac-runner-oci";
             tag = "modular";
             contents = [ baseRuntime activationWrapper pkgs.cacert ];
-            # Flox activation scripts use the conventional env shebang. Nix
-            # store paths alone provide /bin/env, while container runtimes
-            # resolve that shebang as /usr/bin/env; provide the runtime path
-            # explicitly instead of relying on a base image.
+            # Flox activation scripts use conventional env and absolute shell
+            # interpreters. Nix store paths alone do not provide the standard
+            # filesystem locations; create them explicitly instead of relying
+            # on a base image.
             extraCommands = ''
+              # Flox activation uses both env-based and absolute POSIX shell
+              # interpreters. dockerTools has no distribution filesystem, so
+              # provide the conventional paths explicitly instead of relying
+              # on /bin links or the container PATH.
               mkdir -p ./usr/bin
               ln -s ${pkgs.coreutils}/bin/env ./usr/bin/env
+              ln -s ${pkgs.bashInteractive}/bin/bash ./usr/bin/bash
             '';
             config = {
               Entrypoint = [ "${activationWrapper}/bin/senshac-activate" ];
               Cmd = [ "${pkgs.bashInteractive}/bin/bash" ];
               Env = [
-                "PATH=/usr/local/bin:${activationWrapper}/bin:${baseRuntime}/bin"
+                "PATH=/usr/local/bin:/usr/bin:/bin:${activationWrapper}/bin:${baseRuntime}/bin"
                 "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
                 "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
                 "HOME=/tmp"
