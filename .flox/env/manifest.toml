@@ -11,6 +11,9 @@ biome.pkg-path = "biome"
 biome.pkg-group = "biome"
 bun.pkg-path = "bun"
 bun.pkg-group = "bun"
+# Chromium brings its Nix-resolved browser runtime closure into the image.
+chromium.pkg-path = "chromium"
+chromium.pkg-group = "chromium"
 canopy.flake = "github:RogerNavelsaker/nixpkg-canopy"
 canopy.outputs = ["out", "cn"]
 cloudflare-cli.flake = "github:RogerNavelsaker/nixpkg-cloudflare-cli"
