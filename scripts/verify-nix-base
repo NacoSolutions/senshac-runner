@@ -5,34 +5,18 @@ runtime="${CONTAINER_RUNTIME:-docker}"
 image="${1:?Usage: scripts/verify-nix-base IMAGE}"
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# This contract deliberately uses the default minimal profile. It proves that
-# the base image has no implicit Flox activation or network bootstrap.
-"$runtime" run --rm --pull=never \
-  -e SENSHAC_RUNTIME_PROFILE=minimal \
-  "$image" sh -c '
-    set -eu
-    fail() {
-      printf "NIX_BASE_MINIMAL_CHECK_FAILED: %s\n" "$1" >&2
-      exit 1
-    }
-    bootstrap="$(command -v flox-bootstrap 2>/dev/null || true)"
-    [ -x "$bootstrap" ] || fail "flox-bootstrap is not executable: ${bootstrap:-not found}"
-    runtime_profile="$(command -v senshac-runtime 2>/dev/null || true)"
-    [ -x "$runtime_profile" ] || fail "senshac-runtime is not executable: ${runtime_profile:-not found}"
-    bash_path="$(command -v bash 2>/dev/null || true)"
-    [ -n "$bash_path" ] || fail "missing command: bash"
-    bun_path="$(command -v bun 2>/dev/null || true)"
-    [ -n "$bun_path" ] || fail "missing command: bun"
-    chromium_path="$(command -v chromium 2>/dev/null || true)"
-    [ -n "$chromium_path" ] || fail "missing command: chromium"
-    chromium --headless --no-sandbox --disable-gpu --dump-dom \
-      'data:text/html,<title>senshac-runner</title>' 2>/dev/null \
-      | grep -q '<title>senshac-runner</title>' || fail "headless Chromium launch failed"
-    cert="${SSL_CERT_FILE:-}"
-    [ -n "$cert" ] || fail "SSL_CERT_FILE is unset"
-    [ -s "$cert" ] || fail "SSL_CERT_FILE is not a non-empty file: $cert"
-    [ "${SENSHAC_RUNTIME_PROFILE:-}" = minimal ] || fail "unexpected runtime profile: ${SENSHAC_RUNTIME_PROFILE:-unset}"
-    printf "NIX_BASE_MINIMAL_PATHS: flox-bootstrap=%s senshac-runtime=%s bash=%s bun=%s chromium=%s\n" "$bootstrap" "$runtime_profile" "$bash_path" "$bun_path" "$chromium_path"
-    printf "NIX_BASE_MINIMAL_CERT: %s\n" "$cert"
-    printf "%s\n" NIX_BASE_MINIMAL_OK
-  '
+# Every non-base tool comes from the mounted project's committed Flox lock.
+run_flox() {
+  "$runtime" run --rm --pull=never \
+    --volume "$repo:/workspace:ro" \
+    -e FLOX_PROJECT=/workspace \
+    "$image" flox activate -- "$@"
+}
+
+printf 'Checking mounted Flox environment: %s\n' "$image"
+run_flox command -v bun
+run_flox command -v chromium
+run_flox chromium --headless --no-sandbox --disable-gpu \
+  --dump-dom 'data:text/html,<title>senshac-runner</title>' \
+  2>/dev/null | grep -q '<title>senshac-runner</title>'
+printf '%s\n' NIX_FLOX_MOUNTED_PROJECT_OK

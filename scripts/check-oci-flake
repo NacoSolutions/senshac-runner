@@ -23,15 +23,13 @@ assert_output() {
   fi
 }
 
-assert_output senshac-ci-tools eval --raw .#packages.x86_64-linux.ciTools.name
+assert_output senshac-runner-base eval --raw .#packages.x86_64-linux.baseRuntime.name
 # buildLayeredImage emits a Docker-compatible archive named after the image.
 # Keep this exact assertion so the output contract cannot silently drift.
 assert_output senshac-runner-oci.tar.gz eval --raw .#packages.x86_64-linux.ociImage.name
 
-# Build both public packages, rather than only evaluating their names. Keep
-# the OCI output at a caller-supplied link so the workflow can upload this
-# exact build instead of rebuilding it in a later step.
-"${nix_cmd[@]}" build --no-write-lock-file .#ciTools
+# Build the sole public image producer at a caller-supplied link so the
+# workflow can upload this exact build instead of rebuilding it later.
 oci_link="${OCI_ARCHIVE_OUTPUT:-$repo/.oci-image-check}"
 rm -f "$oci_link"
 "${nix_cmd[@]}" build --no-write-lock-file --out-link "$oci_link" .#ociImage
@@ -57,10 +55,10 @@ assert_metadata() {
 
 assert_metadata image 'senshac-runner-oci:modular'
 assert_metadata base_image none
-assert_metadata selected_tools 'bash bun chromium cacert coreutils curl findutils gh git gnugrep gnutar gzip jq nodejs_22 unzip'
-assert_metadata runtime_profiles 'minimal,flox'
-assert_metadata flox_environment 'runtime-mounted,pinned-lock-required'
-assert_metadata minimal_network 'disabled'
-[[ -n "${metadata[ci_tools]-}" ]] || { echo 'ci_tools metadata is empty' >&2; exit 1; }
+assert_metadata base_tools 'bash cacert coreutils flox'
+assert_metadata activation 'mounted-project-manifest-lock'
+assert_metadata project_tools 'committed-flox-manifest-lock'
+assert_metadata image_builder 'dockerTools.buildLayeredImage'
+[[ -n "${metadata[base_runtime]-}" ]] || { echo 'base_runtime metadata is empty' >&2; exit 1; }
 [[ -n "${metadata[image_tarball]-}" ]] || { echo 'image_tarball metadata is empty' >&2; exit 1; }
 printf '%s\n' 'Nix flake, OCI build, and closure metadata validation passed'

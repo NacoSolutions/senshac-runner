@@ -10,7 +10,9 @@ trap 'rm -f "$log"' EXIT
 # File arguments survive the Flox activation handoff, including nested heredocs.
 # Exercise the image's own entrypoint for both probes and the real checks.
 run=("$runtime" run --rm --pull=never -e QUIET=1
+  --volume "$repo:/workspace:ro"
   --volume "$repo/scripts:/runner-check:ro"
+  -e FLOX_PROJECT=/workspace
   "$image" sh /runner-check/verify-ci-runner)
 
 printf 'Checking smoke execution and failure propagation: %s\n' "$image"
