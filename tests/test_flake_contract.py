@@ -59,7 +59,7 @@ class FlakeContractTests(unittest.TestCase):
             'image=senshac-runner-oci:modular',
             'ci_tools=${ciTools}',
             'image_tarball=${ociImage}',
-            'selected_tools=bash bun cacert coreutils curl findutils gh git gnugrep gnutar gzip jq nodejs_22 unzip',
+            'selected_tools=bash bun chromium cacert coreutils curl findutils gh git gnugrep gnutar gzip jq nodejs_22 unzip',
             'runtime_profiles=minimal,flox',
             'flox_environment=runtime-mounted,pinned-lock-required',
             'minimal_network=disabled',
@@ -73,7 +73,7 @@ class FlakeContractTests(unittest.TestCase):
         selected_tools = set(selected.split())
         for tool in ("act", "nixfmt", "ripgrep", "zellij"):
             self.assertNotIn(tool, selected_tools)
-        for tool in ("bashInteractive", "bun", "gh", "git", "nodejs_22", "gnutar"):
+        for tool in ("bashInteractive", "bun", "chromium", "gh", "git", "nodejs_22", "gnutar"):
             self.assertIn(tool, selected_tools)
 
 

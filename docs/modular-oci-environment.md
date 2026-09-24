@@ -2,21 +2,19 @@
 
 Seed: `senshac-workspace-oci-ci`
 
-This is the first, additive step toward a modular runner environment. The
-existing `.flox/env/manifest.toml` remains the full published runner contract.
-The dedicated `.flox/ci/manifest.toml` provides the minimal Flox comparison
-contract, and the repo-local `flake.nix` provides a separately testable Nix closure and does not
-replace Flox containerization yet.
+The repo-local `flake.nix` is the published runner producer. The committed
+`.flox/env/manifest.toml` and lock remain the package contract and are checked
+before the Nix build. The dedicated `.flox/ci/manifest.toml` remains a minimal
+Flox comparison contract; it does not build the published image.
 
 ## Responsibilities
 
-- **Flox** owns the developer environment, its lockfile, custom Senshac tools,
-  activation hook, and the existing `flox containerize` CI image. Changes to
-  `.flox/env/manifest.toml` continue to require the matching lockfile and the
-  existing runner smoke test.
-- **Nix** owns the small, reproducible migration surface in `flake.nix`:
-  `packages.x86_64-linux.ciTools` and the `dockerTools` OCI artifact. It has no
-  Dockerfile, `FROM` image, or base distribution layer.
+- **Flox** owns the developer environment, package manifest, lockfile, custom
+  Senshac tools, and activation contract. Changes to
+  `.flox/env/manifest.toml` continue to require the matching lockfile.
+- **Nix** owns the reproducible published closure in `flake.nix`, including
+  Bun, Chromium and its runtime libraries, and the `dockerTools` OCI artifact.
+  It has no Dockerfile, `FROM` image, apt-get step, or base distribution layer.
 
 The selected closure is intentionally limited to the current CI boundary:
 Bash, core utilities, curl, findutils, GNU grep/tar/gzip, unzip, jq, git, gh,
@@ -109,12 +107,10 @@ shell entrypoint so the smoke script exercises the image itself and failures
 propagate. A failing smoke check fails verification without relying on a
 container daemon shared between jobs.
 
-This is a canary only. The publish workflow still produces the Flox image, and
-no consumer workflow is switched to Nix. The selected Nix closure intentionally
-does not include Flox-only Seeds, Mulch, Terrarium, Trellis, or other
-interactive developer tooling, so this canary does not establish replacement
-parity for those tools. A later migration must decide whether to expand the
-closure or narrow the consumer contract before changing publication ownership.
+The Nix OCI archive is now the publication producer. The selected closure
+intentionally does not include Flox-only Seeds, Mulch, Terrarium, Trellis, or
+other interactive developer tooling; those remain available through the
+explicit mounted Flox activation contract.
 
 ## CI size measurements
 

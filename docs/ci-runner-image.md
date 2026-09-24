@@ -3,9 +3,10 @@
 Seed: `senshac-50a2`
 
 The CI runner image is the shared execution surface for GitHub Actions and
-local Act runs. It is built from the project Flox environment with
-`flox containerize`, including GNU `tar` for actions such as
-`actions/setup-node`, then published to:
+local Act runs. It is assembled by the pinned Nix flake with
+`pkgs.dockerTools.buildLayeredImage`, then published to. Flox remains the
+committed manifest/lock source and is checked before the Nix build; the image
+contains no apt-get step or separate CI browser install.
 
 ```text
 ghcr.io/nacosolutions/senshac-runner:latest
@@ -26,12 +27,11 @@ makes CI consume the same prebuilt toolchain every time.
 dx scripts/build-ci-runner senshac-ci-runner:latest
 ```
 
-The script defaults to rootless Podman through `flox containerize`. Flox is
-the sole image builder and supplies the image entrypoint that activates the
-environment before dispatching commands. The publication workflow uses Docker;
-the same script and derived-image tar copy are used for both runtimes. The
-publication workflow smoke-tests the activated image for the runner's required
-tools. Override the runtime when needed:
+The script defaults to rootless Podman, builds the flake's `ociImage` with
+Nix, and loads its Docker-compatible archive. `dockerTools` is the sole image
+builder; the publication workflow uses Docker and the same script works with
+either runtime. The publication workflow smoke-tests Bun, Chromium, and a
+headless Chromium launch. Override the runtime when needed:
 
 ```bash
 CONTAINER_RUNTIME=docker dx scripts/build-ci-runner ghcr.io/nacosolutions/senshac-runner:test
@@ -60,17 +60,18 @@ For an already-built image, run `scripts/smoke-ci-runner IMAGE` (or set
 read-only and runs it by file path through Flox's image entrypoint. It first
 requires a deliberate exit-42 probe, then requires the successful check's
 completion marker. This verifies both execution and failure propagation.
-The standalone activation contract is `FLOX_ENV/bin` on `PATH`; the host
-project path and host Flox CLI belong to the build environment. A valid
-activated image resolves both `bun` and `chromium`; the smoke check launches
-Chromium headlessly against a data URL to verify its packaged runtime
-libraries.
+The Nix image's default entrypoint is a forwarding runtime profile. It does
+not activate Flox or install packages. A valid image resolves both `bun` and
+`chromium`; the smoke check launches Chromium headlessly against a data URL to
+verify the Nix-provided browser runtime libraries. Flox activation is an
+optional mounted-project contract only when a consumer explicitly supplies a
+Flox binary and selects `SENSHAC_RUNTIME_PROFILE=flox`.
 
 The script attempts to start the user Podman socket with
 `systemctl --user start podman.socket` and exports `DOCKER_HOST` when the
 socket is available. The socket is not required by the local build or smoke
-test, but it is required by Act. Rootless Podman, Flox, and a Git worktree are
-prerequisites; the Flox environment must be able to resolve its packages.
+test, but it is required by Act. Rootless Podman, Nix, and a Git worktree are
+prerequisites; the committed Flox lock must pass validation.
 
 ## Local CI
 
@@ -98,10 +99,10 @@ new image before expecting GitHub CI to use new tools. The runner contract
 requires `tar` to be available on `PATH`; `actions/setup-node` uses it to
 extract the Node distribution. The manifest installs Flox's `gnutar` and
 `gzip` packages, and the smoke test round-trips a gzip-compressed archive
-with `--strip-components=1`. The manifest also installs `chromium`; its Nix
-package supplies the browser runtime closure, including graphics, font, and
-X/Wayland libraries, without apt-get, a browser download, or a second image
-install.
+with `--strip-components=1`. The manifest records `chromium` as the browser dependency, while the flake
+realizes the matching Nix/Flox input and its transitive graphics, font, and
+X/Wayland runtime closure. This keeps browser libraries in the immutable image
+without apt-get, a browser download, or a second image install.
 
 Use the Flox CLI to reconcile package changes and commit both manifest and
 lockfile. `scripts/check-flox-lock` checks manifest equality and resolved
@@ -114,17 +115,14 @@ Local Flox repaired that entry automatically, making the earlier local/CI
 comparison use different inputs. Runtime differences remain a separate
 verification question.
 
-The build logs the image PATH and the
-actual `/nix/store` tar candidates, then copies the discovered `tar` or
-`gtar` executable (following symlinks) into `/usr/bin/tar` in a small derived
-image for pre-activation Actions tooling. The build then verifies that the
-selected runtime resolves exactly `/usr/bin/tar`
-before retagging; invoke it once with `CONTAINER_RUNTIME=podman` and once with
-`CONTAINER_RUNTIME=docker` to compare runtimes. The publish workflow runs
+The Nix closure includes GNU tar directly, so no post-build binary copy or
+runtime-specific derived image is needed. `scripts/verify-nix-base` checks the
+runtime contract, including `command -v bun`, `command -v chromium`, and a
+headless Chromium launch. The publish workflow runs
 on main for those files and can also be started manually from GitHub Actions.
-PR verification and publication pin Flox 1.16.0. The read-only PR workflow
-builds and smoke-tests a local Docker image, keeping registry publication on
-main. Publication verifies the local image, pushes the immutable
+PR verification builds the comparison environments and Nix OCI archive. The
+read-only PR workflow builds and smoke-tests a local Docker image, keeping
+registry publication on main. Publication verifies the local image, pushes the immutable
 `sha-<commit>` tag, pulls and smoke-tests that registry artifact, and only
 then advances `latest`.
 

@@ -17,6 +17,9 @@
             paths = with pkgs; [
               bashInteractive
               bun
+              # Chromium and its transitive graphics/font/X11 runtime closure
+              # are realized by Nix as one immutable input.
+              chromium
               cacert
               coreutils
               curl
@@ -107,7 +110,7 @@
               'image=senshac-runner-oci:modular' \
               'ci_tools=${ciTools}' \
               'image_tarball=${ociImage}' \
-              'selected_tools=bash bun cacert coreutils curl findutils gh git gnugrep gnutar gzip jq nodejs_22 unzip' \
+              'selected_tools=bash bun chromium cacert coreutils curl findutils gh git gnugrep gnutar gzip jq nodejs_22 unzip' \
               'runtime_profiles=minimal,flox' \
               'flox_environment=runtime-mounted,pinned-lock-required' \
               'minimal_network=disabled' \

@@ -57,7 +57,7 @@ assert_metadata() {
 
 assert_metadata image 'senshac-runner-oci:modular'
 assert_metadata base_image none
-assert_metadata selected_tools 'bash bun cacert coreutils curl findutils gh git gnugrep gnutar gzip jq nodejs_22 unzip'
+assert_metadata selected_tools 'bash bun chromium cacert coreutils curl findutils gh git gnugrep gnutar gzip jq nodejs_22 unzip'
 assert_metadata runtime_profiles 'minimal,flox'
 assert_metadata flox_environment 'runtime-mounted,pinned-lock-required'
 assert_metadata minimal_network 'disabled'
