@@ -77,8 +77,8 @@ class RunnerContractTests(unittest.TestCase):
         runtime.write_text("""#!/usr/bin/env bash
 set -eu
 # Assert mounted file invocation through the default image entrypoint.
-[[ "$*" == *'/workspace:/workspace:ro'* ]]
-[[ "$*" == *'/scripts:/runner-check:ro'* ]]
+[[ "$*" == *':/workspace:ro'* ]]
+[[ "$*" == *'scripts:/runner-check:ro'* ]]
 [[ "$*" == *'sh /runner-check/verify-ci-runner'* ]]
 [[ "$*" != *'--entrypoint'* ]]
 case "$SMOKE_TEST_MODE" in

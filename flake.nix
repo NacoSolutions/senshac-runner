@@ -78,6 +78,6 @@
               'base_image=none' \
               > "$out/metadata"
           '';
-        };
+        });
     };
 }
