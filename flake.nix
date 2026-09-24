@@ -2,8 +2,11 @@
   description = "Senshac Runner's Flox activation OCI image";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+  # Flox is not distributed by nixpkgs. Pin the supported upstream package
+  # instead of relying on an attribute that nixpkgs does not provide.
+  inputs.flox.url = "github:flox/flox/486737b3e68b0f094e89b4b3e27260e9f6c91b4a";
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, flox }:
     let
       systems = [ "x86_64-linux" ];
       forEachSystem = f: nixpkgs.lib.genAttrs systems (system: f (import nixpkgs { inherit system; }));
@@ -14,7 +17,13 @@
           # only the immutable bootstrap needed to run activation.
           baseRuntime = pkgs.buildEnv {
             name = "senshac-runner-base";
-            paths = with pkgs; [ bashInteractive cacert coreutils flox ];
+            paths = with pkgs; [
+              bashInteractive
+              cacert
+              coreutils
+              # The CLI/runtime comes from Flox's pinned upstream flake.
+              flox.packages.${pkgs.system}.flox
+            ];
             pathsToLink = [ "/bin" "/lib" "/share" ];
           };
 

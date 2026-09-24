@@ -11,15 +11,17 @@ before the Nix build. It is the only Flox source contract for non-base tools.
 - **Flox** owns the developer environment, package manifest, lockfile, custom
   Senshac tools, and activation contract. Changes to
   `.flox/env/manifest.toml` continue to require the matching lockfile.
-- **Nix** owns the reproducible published closure in `flake.nix`, including
-  Bun, Chromium and its runtime libraries, and the `dockerTools` OCI artifact.
-  It has no Dockerfile, `FROM` image, apt-get step, or base distribution layer.
+- **Nix** owns the reproducible published base closure in `flake.nix`, including
+  the pinned Flox CLI/runtime package and the `dockerTools` OCI artifact. Bun,
+  Chromium, and every other project tool remain owned by the mounted Flox
+  manifest/lock. It has no Dockerfile, `FROM` image, apt-get step, or base
+  distribution layer.
 
-The image closure contains only the base shell/runtime, Flox CLI, CA
-certificates, and the activation wrapper. Bun, Chromium, Node.js, GNU tar,
-and every other project tool are resolved by the mounted project's committed
-`.flox/env/manifest.lock`; no hand-maintained tool list is duplicated in the
-flake.
+The image closure contains only the base shell/runtime, the pinned Flox
+CLI/runtime, CA certificates, and the activation wrapper. Bun, Chromium,
+Node.js, GNU tar, and every other project tool are resolved by the mounted
+project's committed `.flox/env/manifest.lock`; no hand-maintained tool list is
+duplicated in the flake.
 
 ## Evaluate and inspect
 
