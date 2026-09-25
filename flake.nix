@@ -1,74 +1,38 @@
 {
-  description = "Senshac Runner's Flox activation OCI image";
-
-  # Flox publishes its CLI and patched Nix closure in this cache. Keep the
-  # cache declaration in the flake so generic Nix installations use the same
-  # official substitution model as Flox's installer.
-  nixConfig = {
-    extra-substituters = [ "https://cache.flox.dev" ];
-    extra-trusted-public-keys = [
-      "flox-cache-public-1:7F4OyH7ZCnFhcze3fJdfyXYLQw/aV7GEed86nQ7IsOs="
-    ];
-  };
-
+  description = "Senshac Runner devenv OCI image";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
-  # Flox is not distributed by nixpkgs. Pin an upstream release rather than a
-  # moving branch or source revision; its published closure is substituted
-  # from cache.flox.dev instead of compiling the Rust CLI locally.
-  inputs.flox.url = "github:flox/flox/v1.9.1";
-
-  outputs = { self, nixpkgs, flox }:
+  outputs = { self, nixpkgs, ... }:
     let
       systems = [ "x86_64-linux" ];
       forEachSystem = f: nixpkgs.lib.genAttrs systems (system: f (import nixpkgs { inherit system; }));
     in {
       packages = forEachSystem (pkgs:
         let
-          # The committed Flox manifest/lock owns every project tool. This is
-          # only the immutable bootstrap needed to run activation.
+          runnerPackages = with pkgs; [
+            bashInteractive cacert coreutils curl gnutar gzip git gh jq devenv
+            bun chromium gcc nodejs_24 unzip
+          ];
           baseRuntime = pkgs.buildEnv {
             name = "senshac-runner-base";
-            paths = with pkgs; [
-              bashInteractive
-              cacert
-              coreutils
-              # The CLI/runtime comes from Flox's pinned upstream flake.
-              flox.packages.${pkgs.system}.flox
-            ];
+            paths = runnerPackages;
             pathsToLink = [ "/bin" "/lib" "/share" ];
           };
-
           activationWrapper = pkgs.writeShellScriptBin "senshac-activate" ''
             set -eu
-            project="''${FLOX_PROJECT:-$PWD}"
-            lock="$project/.flox/env/manifest.lock"
+            project="''${DEVENV_ROOT:-$PWD}"
+            lock="$project/devenv.lock"
             if [ ! -f "$lock" ]; then
-              echo "Flox activation requires a mounted project lock: $lock" >&2
+              echo "devenv shell requires a mounted project lock: $lock" >&2
               exit 2
             fi
-            export FLOX_PROJECT="$project"
-            # Keep an explicit command form available for mounted-project
-            # verification while making the image entrypoint an activation
-            # wrapper for ordinary commands.
-            if [ "''${1:-}" = flox ] && [ "''${2:-}" = activate ]; then
-              exec "$@"
-            fi
-            exec flox activate -d "$project" -- "$@"
+            export DEVENV_ROOT="$project"
+            exec devenv shell -- "$@"
           '';
-
           ociImage = pkgs.dockerTools.buildLayeredImage {
             name = "senshac-runner-oci";
             tag = "modular";
             contents = [ baseRuntime activationWrapper pkgs.cacert ];
-            # Flox activation scripts use conventional env and absolute shell
-            # interpreters. Nix store paths alone do not provide the standard
-            # filesystem locations; create them explicitly instead of relying
-            # on a base image.
             extraCommands = ''
-              # Flox activation uses both env-based and absolute POSIX shell
-              # interpreters. dockerTools has no distribution filesystem, so
-              # provide the conventional paths explicitly instead of relying
-              # on /bin links or the container PATH.
               mkdir -p ./usr/bin
               ln -s ${pkgs.coreutils}/bin/env ./usr/bin/env
               ln -s ${pkgs.bashInteractive}/bin/bash ./usr/bin/bash
@@ -81,35 +45,27 @@
                 "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
                 "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
                 "HOME=/tmp"
-                "FLOX_PROJECT=/workspace"
+                "DEVENV_ROOT=/workspace"
               ];
               WorkingDir = "/workspace";
             };
           };
-        in {
-          inherit baseRuntime ociImage;
-          default = ociImage;
-        });
-
+        in { inherit baseRuntime ociImage; default = ociImage; });
       checks = forEachSystem (pkgs:
-        let
-          baseRuntime = self.packages.${pkgs.system}.baseRuntime;
-          ociImage = self.packages.${pkgs.system}.ociImage;
+        let baseRuntime = self.packages.${pkgs.system}.baseRuntime;
+            ociImage = self.packages.${pkgs.system}.ociImage;
         in {
-          oci-closure-metadata = pkgs.runCommand "senshac-oci-closure-metadata" {
-            nativeBuildInputs = [ pkgs.coreutils ];
-          } ''
+          oci-closure-metadata = pkgs.runCommand "senshac-oci-closure-metadata" {} ''
             mkdir -p "$out"
             printf '%s\n' \
               'image=senshac-runner-oci:modular' \
               'base_runtime=${baseRuntime}' \
               'image_tarball=${ociImage}' \
-              'base_tools=bash cacert coreutils flox' \
-              'activation=mounted-project-manifest-lock' \
-              'project_tools=committed-flox-manifest-lock' \
+              'base_tools=bash cacert coreutils devenv' \
+              'activation=mounted-project-devenv-lock' \
+              'project_tools=committed-devenv-lock' \
               'image_builder=dockerTools.buildLayeredImage' \
-              'base_image=none' \
-              > "$out/metadata"
+              'base_image=none' > "$out/metadata"
           '';
         });
     };

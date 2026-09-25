@@ -2,7 +2,7 @@
 
 ## Production evaluation
 
-Flox/Nix is valuable for repository quality gates and the published CI runner,
+devenv/Nix is valuable for repository quality gates and the published CI runner,
 but it is not required in the Warren agent image. Production needs reproducible
 builds, Cloudflare tooling, Bun dependencies, and media tooling; these belong
 to CI and the media runner. The agent image uses Node 24 because Pi currently
@@ -18,10 +18,10 @@ Warren agent image
           |
           v
 senshac-runner / GitHub CI
-  Flox/Nix + full quality gates + Cloudflare build compatibility
+  devenv/Nix + full quality gates + Cloudflare build compatibility
 ```
 
-The Warren image should not install Flox, Nix, Plot, or Claude. Warren may
+The Warren image should not install devenv, Nix, Plot, or Claude. Warren may
 invoke a sibling runner or defer heavyweight validation to GitHub Actions.
 
 ## Required Warren image tools
@@ -48,7 +48,7 @@ coreutils. Keep the real Node 24 runtime for Pi unchanged.
 - Lightweight formatting, metadata, Seeds integrity, and static checks may run
   directly in Warren. The image build smoke-tests `tr --help`,
   `terrarium --help`, `sd --version`, `ml --version`, and `trellis --help`.
-- Flox/Nix-dependent build, Cloudflare, browser, and production smoke gates
+- devenv/Nix-dependent build, Cloudflare, browser, and production smoke gates
   run in `senshac-runner` or GitHub Actions.
 - Warren may open a PR only after authoritative runner/CI gates pass.
 - `senshac-web` remains blocked from production cutover until it has protected

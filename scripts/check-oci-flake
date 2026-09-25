@@ -9,9 +9,8 @@ if ! command -v nix >/dev/null 2>&1; then
   exit 2
 fi
 
-# Accept the pinned flake's official cache declaration. Without this flag,
-# generic Nix installations ignore cache.flox.dev and compile Flox's Rust
-# closure locally.
+# Accept the flake configuration so generic Nix installations honor its
+# declared inputs and do not write lock updates during validation.
 nix_cmd=(nix --accept-flake-config --extra-experimental-features 'nix-command flakes')
 "${nix_cmd[@]}" flake check --no-write-lock-file
 
@@ -58,9 +57,9 @@ assert_metadata() {
 
 assert_metadata image 'senshac-runner-oci:modular'
 assert_metadata base_image none
-assert_metadata base_tools 'bash cacert coreutils flox'
-assert_metadata activation 'mounted-project-manifest-lock'
-assert_metadata project_tools 'committed-flox-manifest-lock'
+assert_metadata base_tools 'bash cacert coreutils devenv'
+assert_metadata activation 'mounted-project-devenv-lock'
+assert_metadata project_tools 'committed-devenv-manifest-lock'
 assert_metadata image_builder 'dockerTools.buildLayeredImage'
 [[ -n "${metadata[base_runtime]-}" ]] || { echo 'base_runtime metadata is empty' >&2; exit 1; }
 [[ -n "${metadata[image_tarball]-}" ]] || { echo 'image_tarball metadata is empty' >&2; exit 1; }

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+bun - "$repo/devenv.nix" "$repo/devenv.lock" <<'JS'
+const [nixPath, lockPath] = Bun.argv.slice(2);
+if (!(await Bun.file(nixPath).exists())) throw new Error("devenv.nix is missing");
+let lock;
+try { lock = JSON.parse(await Bun.file(lockPath).text()); }
+catch (error) { throw new Error(`Invalid devenv.lock: ${error}`); }
+if (!lock.nodes || typeof lock.nodes !== "object" || !lock.nodes[lock.root]) {
+  throw new Error("devenv.lock has no root node");
+}
+console.log(`devenv lock complete: ${Object.keys(lock.nodes).length} locked inputs`);
+JS

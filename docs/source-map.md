@@ -4,13 +4,13 @@ Initial extraction from `NacoSolutions/senshac`:
 
 | Runner file | Source purpose |
 | --- | --- |
-| `scripts/build-ci-runner` | Flox container image build |
+| `scripts/build-ci-runner` | devenv container image build |
 | `scripts/verify-ci-runner-local` | Local Podman build and no-push smoke test |
 | `scripts/act-ci` | Rootless Podman local CI |
 | `.github/workflows/build-runner.yml` | Runner image validation |
 | `.github/workflows/publish-ci-runner.yml` | GHCR image publishing |
 | `.github/workflows/ci.yml` | Reference CI contract |
-| `.flox/` | Reproducible runner toolchain |
+| `.devenv/` | Reproducible runner toolchain |
 | `docs/ci-runner-image.md` | Image operations and verification |
 
 The source web repository remains authoritative until clean-container

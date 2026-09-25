@@ -5,33 +5,33 @@ runtime="${CONTAINER_RUNTIME:-docker}"
 image="${1:?Usage: scripts/verify-nix-base IMAGE}"
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Every non-base tool comes from the mounted project's committed Flox lock.
+# Every non-base tool comes from the mounted project's committed devenv lock.
 run_image() {
   "$runtime" run --rm --pull=never \
     --entrypoint /usr/bin/env \
     --volume "$repo:/workspace:ro" \
-    -e FLOX_PROJECT=/workspace \
+    -e DEVENV_ROOT=/workspace \
     "$image" "$@"
 }
 
 # Fail with the missing runtime path rather than an opaque activation error.
-# The dockerTools image has no base distribution. Flox activation uses the
+# The dockerTools image has no base distribution. devenv shell activation uses the
 # conventional absolute shell path as well as env-based shebangs, so verify
 # both runtime paths before attempting activation.
 printf 'Checking image runtime contract: /usr/bin/env and /usr/bin/bash\n'
 run_image bash -c 'test -x /usr/bin/env && test -x /usr/bin/bash && command -v bash'
 
-run_flox() {
+run_devenv() {
   "$runtime" run --rm --pull=never \
     --volume "$repo:/workspace:ro" \
-    -e FLOX_PROJECT=/workspace \
-    "$image" flox activate -- "$@"
+    -e DEVENV_ROOT=/workspace \
+    "$image" devenv shell -- "$@"
 }
 
-printf 'Checking mounted Flox environment: %s\n' "$image"
-run_flox command -v bun
-run_flox command -v chromium
-run_flox chromium --headless --no-sandbox --disable-gpu \
+printf 'Checking mounted devenv environment: %s\n' "$image"
+run_devenv command -v bun
+run_devenv command -v chromium
+run_devenv chromium --headless --no-sandbox --disable-gpu \
   --dump-dom 'data:text/html,<title>senshac-runner</title>' \
   2>/dev/null | grep -q '<title>senshac-runner</title>'
-printf '%s\n' NIX_FLOX_MOUNTED_PROJECT_OK
+printf '%s\n' NIX_DEVENV_MOUNTED_PROJECT_OK

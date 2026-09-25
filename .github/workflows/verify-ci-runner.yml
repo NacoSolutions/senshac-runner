@@ -3,9 +3,10 @@ name: Verify CI Runner Container
 on:
   pull_request:
     paths:
-      - '.flox/env/**'
+      - 'devenv.nix'
+      - 'devenv.lock'
       - 'scripts/build-ci-runner'
-      - 'scripts/check-flox-lock'
+      - 'scripts/check-devenv-lock'
       - 'scripts/smoke-ci-runner'
       - 'scripts/verify-ci-runner*'
       - 'scripts/report-ci-image-size'
@@ -42,8 +43,8 @@ jobs:
             experimental-features = nix-command flakes
       # The PR CI workflow owns source and regression validation. This workflow
       # builds the single producer output only after that validation pass.
-      - name: Validate the Flox source lock
-        run: scripts/check-flox-lock
+      - name: Validate the devenv source lock
+        run: scripts/check-devenv-lock
       - name: Build the Nix dockerTools image once
         env:
           OCI_ARCHIVE_OUTPUT: ${{ runner.temp }}/oci-image.tar.gz

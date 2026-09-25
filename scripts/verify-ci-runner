@@ -6,16 +6,10 @@ if [ "${1:-}" = --probe-failure ]; then
   exit 42
 fi
 
-printf 'FLOX_ENV=%s\n' "${FLOX_ENV:-}"
+printf 'DEVENV_ROOT=%s\n' "${DEVENV_ROOT:-}"
 printf 'PATH=%s\n' "$PATH"
 
-test -n "${FLOX_ENV:-}"
-test -d "$FLOX_ENV/bin"
-case ":$PATH:" in
-  *":$FLOX_ENV/bin:"*) ;;
-  *) echo 'Activated Flox bin directory missing from PATH' >&2; exit 1 ;;
-esac
-for tool in tar gzip git gh sd ml tr tl bun node gcc unzip chromium; do
+for tool in tar gzip git gh bun node gcc unzip chromium; do
   command -v "$tool"
 done
 tar_path="$(command -v tar)"
@@ -31,10 +25,6 @@ tar -xzf "$tmp/probe.tar.gz" --strip-components=1 -C "$tmp/extracted"
 test "$(cat "$tmp/extracted/probe")" = 'runner archive check'
 git --version
 gh --version
-sd --help >/dev/null
-ml --help >/dev/null
-tr --help >/dev/null
-tl --help >/dev/null
 printf 'Checking Node and Bun TLS access\n'
 node --input-type=commonjs <<'NODE'
 const request = require("https").get("https://github.com", response => {
