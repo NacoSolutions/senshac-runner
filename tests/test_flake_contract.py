@@ -48,7 +48,7 @@ class FlakeContractTests(unittest.TestCase):
         self.assertIn('mktemp /workspace/.oci-workspace.XXXXXX', VERIFY)
         self.assertIn('command -v "$tool"', VERIFY)
         self.assertIn("for tool in bash tar gzip grep git gh bun node gcc unzip chromium jq curl; do", VERIFY)
-        self.assertIn("for tool in tar gzip git gh bun node gcc unzip chromium jq curl; do", (ROOT / "scripts/verify-ci-runner").read_text())
+        self.assertIn("for tool in tar gzip grep git gh bun node gcc unzip chromium jq curl; do", (ROOT / "scripts/verify-ci-runner").read_text())
         self.assertIn("--userns=keep-id:uid=1000,gid=1000", SMOKE)
         self.assertIn('"$image" bash /runner-check/verify-ci-runner', SMOKE)
 
