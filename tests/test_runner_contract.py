@@ -19,9 +19,10 @@ class RunnerContractTests(unittest.TestCase):
     def test_nix_verification_uses_an_isolated_writable_workspace(self):
         self.assertIn('verification_workspace="$(mktemp -d', VERIFY_NIX_BASE)
         self.assertIn('verification_home="$verification_workspace/.home"', VERIFY_NIX_BASE)
+        self.assertIn('verification_tmp="$verification_workspace/.tmp"', VERIFY_NIX_BASE)
+        self.assertIn('mkdir -m 700 -- "$verification_home" "$verification_tmp"', VERIFY_NIX_BASE)
         self.assertIn('runner_uid="$(id -u)"', VERIFY_NIX_BASE)
         self.assertIn('runner_gid="$(id -g)"', VERIFY_NIX_BASE)
-        self.assertIn('mkdir -m 700 -- "$verification_home"', VERIFY_NIX_BASE)
         self.assertIn("prepare_verification_workspace()", VERIFY_NIX_BASE)
         self.assertIn("--exclude='./.devenv'", VERIFY_NIX_BASE)
         self.assertIn("--exclude='./.devenv.flake.nix'", VERIFY_NIX_BASE)
@@ -32,6 +33,7 @@ class RunnerContractTests(unittest.TestCase):
         self.assertEqual(VERIFY_NIX_BASE.count('--user "$runner_uid:$runner_gid"'), 2)
         self.assertEqual(VERIFY_NIX_BASE.count('--volume "$verification_workspace:/workspace:rw"'), 2)
         self.assertEqual(VERIFY_NIX_BASE.count('-e HOME=/workspace/.home'), 2)
+        self.assertEqual(VERIFY_NIX_BASE.count('-e TMPDIR=/workspace/.tmp'), 2)
         self.assertNotIn('--volume "$repo:/workspace:', VERIFY_NIX_BASE)
         self.assertNotIn("--tmpfs /workspace/.devenv", VERIFY_NIX_BASE)
 

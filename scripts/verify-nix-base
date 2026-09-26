@@ -14,9 +14,12 @@ cleanup() {
 }
 trap cleanup EXIT
 verification_home="$verification_workspace/.home"
+verification_tmp="$verification_workspace/.tmp"
 runner_uid="$(id -u)"
 runner_gid="$(id -g)"
-mkdir -m 700 -- "$verification_home"
+# The OCI image's /tmp is not guaranteed writable for the host uid; devenv
+# creates temporary directories there unless TMPDIR points at the workspace.
+mkdir -m 700 -- "$verification_home" "$verification_tmp"
 
 prepare_verification_workspace() {
   tar -C "$repo" \
@@ -35,6 +38,7 @@ run_image() {
     --volume "$verification_workspace:/workspace:rw" \
     -e DEVENV_ROOT=/workspace \
     -e HOME=/workspace/.home \
+    -e TMPDIR=/workspace/.tmp \
     "$image" "$@"
 }
 
@@ -51,6 +55,7 @@ run_devenv() {
     --volume "$verification_workspace:/workspace:rw" \
     -e DEVENV_ROOT=/workspace \
     -e HOME=/workspace/.home \
+    -e TMPDIR=/workspace/.tmp \
     "$image" devenv shell -- "$@"
 }
 
