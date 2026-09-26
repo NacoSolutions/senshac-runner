@@ -5,6 +5,20 @@ runtime="${CONTAINER_RUNTIME:-docker}"
 image="${1:?Usage: scripts/verify-nix-base IMAGE}"
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Docker creates a tmpfs mountpoint inside the read-only bind mount. Create
+# that directory in the source checkout first; the tmpfs then hides it and
+# keeps all devenv state ephemeral. Reject symlinks so the preparation cannot
+# redirect a container mount outside the checkout.
+prepare_devenv_mountpoint() {
+  local devenv_dir="$repo/.devenv"
+  if [[ -L "$devenv_dir" || ( -e "$devenv_dir" && ! -d "$devenv_dir" ) ]]; then
+    printf 'Refusing unsafe devenv mountpoint: %s\n' "$devenv_dir" >&2
+    return 1
+  fi
+  mkdir -p -- "$devenv_dir"
+}
+prepare_devenv_mountpoint
+
 # Every non-base tool comes from the mounted project's committed devenv lock.
 # devenv creates project GC roots under .devenv; keep that state writable
 # without weakening the read-only checkout mount.

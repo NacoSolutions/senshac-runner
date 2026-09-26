@@ -70,10 +70,17 @@ remains minimal and immutable.
 Example:
 
 ```sh
+# Docker needs the nested mountpoint to exist before the parent read-only bind.
+mkdir -p "$PWD/.devenv"
 docker run --rm -e DEVENV_ROOT=/workspace \\
-  -v "$PWD:/workspace:ro" senshac-runner-oci:modular \\
-  devenv shell -- command -v bun
+  -v "$PWD:/workspace:ro" \\
+  --tmpfs /workspace/.devenv:rw \\
+  senshac-runner-oci:modular devenv shell -- command -v bun
 ```
+
+The verification script creates this ignored directory in the source checkout,
+rejects a symlink at that path, and overlays it with an ephemeral writable
+`tmpfs`. The checkout remains read-only inside the container.
 
 ## Official devenv cache and Cargo measurement
 

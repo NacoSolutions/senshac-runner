@@ -17,6 +17,11 @@ class RunnerContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_nix_verification_keeps_project_read_only_with_writable_devenv_state(self):
+        self.assertIn("prepare_devenv_mountpoint()", VERIFY_NIX_BASE)
+        self.assertIn('mkdir -p -- "$devenv_dir"', VERIFY_NIX_BASE)
+        self.assertIn('[[ -L "$devenv_dir"', VERIFY_NIX_BASE)
+        self.assertLess(VERIFY_NIX_BASE.index("prepare_devenv_mountpoint\n"),
+                        VERIFY_NIX_BASE.index("run_image()"))
         self.assertEqual(VERIFY_NIX_BASE.count('--volume "$repo:/workspace:ro"'), 2)
         self.assertEqual(VERIFY_NIX_BASE.count("--tmpfs /workspace/.devenv:rw"), 2)
 
