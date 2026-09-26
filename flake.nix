@@ -1,5 +1,5 @@
 {
-  description = "Senshac Runner devenv OCI image";
+  description = "Senshac rootless OCI runner image";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   outputs = { self, nixpkgs, ... }:
@@ -9,64 +9,71 @@
     in {
       packages = forEachSystem (pkgs:
         let
-          runnerPackages = with pkgs; [
+          runtimePackages = with pkgs; [
             bashInteractive cacert coreutils curl gnutar gzip git gh jq
             bun chromium gcc nodejs_22 unzip
           ];
-          devenvPackage = pkgs.devenv;
-          runnerPackagesWithDevenv = runnerPackages ++ [ devenvPackage ];
-          baseRuntime = pkgs.buildEnv {
-            name = "senshac-runner-base";
-            paths = runnerPackagesWithDevenv;
+          runtime = pkgs.buildEnv {
+            name = "senshac-runner-runtime";
+            paths = runtimePackages;
             pathsToLink = [ "/bin" "/lib" "/share" ];
           };
-          activationWrapper = pkgs.writeShellScriptBin "senshac-activate" ''
-            set -eu
-            project="''${DEVENV_ROOT:-$PWD}"
-            lock="$project/devenv.lock"
-            if [ ! -f "$lock" ]; then
-              echo "devenv shell requires a mounted project lock: $lock" >&2
-              exit 2
-            fi
-            export DEVENV_ROOT="$project"
-            exec devenv shell -- "$@"
-          '';
           ociImage = pkgs.dockerTools.buildLayeredImage {
             name = "senshac-runner-oci";
             tag = "modular";
-            contents = [ baseRuntime activationWrapper pkgs.cacert ];
+            contents = [ runtime pkgs.cacert ];
             extraCommands = ''
-              mkdir -p ./usr/bin
+              mkdir -p ./usr/bin ./etc ./home/runner ./tmp ./workspace
+              ln -s ${runtime}/bin ./bin
               ln -s ${pkgs.coreutils}/bin/env ./usr/bin/env
-              ln -s ${pkgs.bashInteractive}/bin/bash ./usr/bin/bash
+              ln -s ${runtime}/bin/bash ./usr/bin/bash
+              printf '%s\n' \
+                'root:x:0:0:root:/root:/bin/bash' \
+                'runner:x:1000:1000:Senshac Runner:/home/runner:/bin/bash' \
+                > ./etc/passwd
+              printf '%s\n' \
+                'root:x:0:' \
+                'runner:x:1000:' \
+                > ./etc/group
+              printf '%s\n' 'passwd: files' 'group: files' 'hosts: files dns' > ./etc/nsswitch.conf
+              chmod 0755 ./home ./home/runner ./workspace
+              chmod 1777 ./tmp
+            '';
+            fakeRootCommands = ''
+              chown 1000:1000 ./home/runner ./workspace
+              chown 0:0 ./tmp
             '';
             config = {
-              Entrypoint = [ "${activationWrapper}/bin/senshac-activate" ];
-              Cmd = [ "${pkgs.bashInteractive}/bin/bash" ];
+              User = "1000:1000";
+              Cmd = [ "/bin/bash" ];
               Env = [
-                "PATH=/usr/local/bin:/usr/bin:/bin:${activationWrapper}/bin:${baseRuntime}/bin"
+                "PATH=/bin:/usr/bin:${runtime}/bin"
+                "HOME=/home/runner"
+                "TMPDIR=/tmp"
                 "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
                 "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-                "HOME=/tmp"
-                "DEVENV_ROOT=/workspace"
               ];
               WorkingDir = "/workspace";
             };
           };
-        in { inherit baseRuntime ociImage; default = ociImage; });
+        in {
+          inherit runtime ociImage;
+          default = ociImage;
+        });
       checks = forEachSystem (pkgs:
-        let baseRuntime = self.packages.${pkgs.system}.baseRuntime;
+        let runtime = self.packages.${pkgs.system}.runtime;
             ociImage = self.packages.${pkgs.system}.ociImage;
         in {
           oci-closure-metadata = pkgs.runCommand "senshac-oci-closure-metadata" {} ''
             mkdir -p "$out"
             printf '%s\n' \
               'image=senshac-runner-oci:modular' \
-              'base_runtime=${baseRuntime}' \
+              'runtime=${runtime}' \
               'image_tarball=${ociImage}' \
-              'base_tools=bash cacert coreutils devenv' \
-              'activation=mounted-project-devenv-lock' \
-              'project_tools=committed-devenv-manifest-lock' \
+              'runtime_tools=bash bun cacert chromium coreutils curl gcc git gh gnutar gzip jq nodejs unzip' \
+              'runtime_user=runner:1000:1000' \
+              'writable_paths=/home/runner /tmp /workspace' \
+              'runtime_contract=direct-packaged-runtime' \
               'image_builder=dockerTools.buildLayeredImage' \
               'base_image=none' > "$out/metadata"
           '';

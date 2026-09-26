@@ -5,83 +5,61 @@ runtime="${CONTAINER_RUNTIME:-docker}"
 image="${1:?Usage: scripts/verify-nix-base IMAGE}"
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# devenv writes both .devenv and .devenv.flake.nix below its project root.
-# Verify an isolated copy so the checkout stays unchanged while the mounted
-# workspace remains writable for the complete devenv evaluation.
 verification_workspace="$(mktemp -d "${TMPDIR:-/tmp}/senshac-verify.XXXXXX")"
 cleanup() {
-  # Nix can leave root-owned/read-only generated state anywhere below the
-  # temporary project. Let the image's root account remove all of it before
-  # the host-side cleanup attempt; this also removes generated devenv flakes.
-  if [[ -d "$verification_workspace" ]]; then
-    "$runtime" run --rm --pull=never --user 0:0 \
-      --entrypoint /usr/bin/env \
-      --volume "$verification_workspace:/workspace:rw" \
-      "$image" sh -c 'rm -rf -- /workspace/.??* /workspace/*' 2>/dev/null || true
-  fi
-  rm -rf -- "$verification_workspace" || {
-    chmod -R u+rwx "$verification_workspace" 2>/dev/null || true
-    rm -rf -- "$verification_workspace"
-  }
+  rm -rf -- "$verification_workspace"
 }
 trap cleanup EXIT
-verification_home="$verification_workspace/.home"
-verification_tmp="$verification_workspace/.tmp"
+
+# Verify the committed checkout in a writable, isolated bind mount. The image
+# remains the direct Nix runtime; no activation files or lock are generated.
+archive="$(mktemp "${TMPDIR:-/tmp}/senshac-source.XXXXXX.tar")"
+git -C "$repo" archive --format=tar HEAD > "$archive"
+tar -C "$verification_workspace" -xf "$archive"
+rm -f -- "$archive"
+
 runner_uid="$(id -u)"
 runner_gid="$(id -g)"
-# The OCI image's /tmp is not guaranteed writable for the host uid; devenv
-# creates temporary directories there unless TMPDIR points at the workspace.
-mkdir -m 700 -- "$verification_home" "$verification_tmp"
+container_args=(run --rm --pull=never)
+if [[ "$(basename "$runtime")" == podman ]]; then
+  # Require a genuinely rootless host runtime and map the image user onto the
+  # invoking host user for the writable workspace bind mount.
+  [[ "$runner_uid" -ne 0 ]] || { echo 'Rootless Podman verification requires a non-root host user' >&2; exit 2; }
+  podman_rootless="$("$runtime" info --format '{{.Host.Security.Rootless}}')"
+  [[ "$podman_rootless" == true ]] || { echo 'Podman is not running rootless' >&2; exit 2; }
+  container_args+=(--userns=keep-id:uid=1000,gid=1000 -e EXPECT_RUNNER_USER=1)
+else
+  # Docker's rootful daemon does not need a user namespace mapping.
+  container_args+=(--user "$runner_uid:$runner_gid")
+  mkdir -m 700 -- "$verification_workspace/.home"
+  container_args+=(--volume "$verification_workspace/.home:/home/runner:rw")
+fi
+container_args+=(
+  --volume "$verification_workspace:/workspace:rw"
+  --workdir /workspace
+  -e HOME=/home/runner
+  -e TMPDIR=/tmp
+)
 
-prepare_verification_workspace() {
-  # Archive HEAD rather than the working tree: verification consumes exactly
-  # the committed manifest and lock and cannot copy local mutations into CI.
-  # Keep the archive separate from the workspace during extraction.
-  archive="$(mktemp "${TMPDIR:-/tmp}/senshac-source.XXXXXX.tar")"
-  git -C "$repo" archive --format=tar HEAD > "$archive"
-  tar -C "$verification_workspace" -xf "$archive"
-  rm -f -- "$archive"
-  # The workspace is new, but remove generated state defensively so a future
-  # workspace/reuse change cannot make devenv evaluate a stale generated flake.
-  rm -rf -- "$verification_workspace/.devenv" \
-    "$verification_workspace/.devenv.flake.nix"
-}
-prepare_verification_workspace
-
-# Every non-base tool comes from the mounted project's committed devenv lock.
-# The writable copy is temporary and is removed by cleanup after verification.
-run_image() {
-  "$runtime" run --rm --pull=never \
-    --user "$runner_uid:$runner_gid" \
-    --entrypoint /usr/bin/env \
-    --volume "$verification_workspace:/workspace:rw" \
-    -e DEVENV_ROOT=/workspace \
-    -e HOME=/workspace/.home \
-    -e TMPDIR=/workspace/.tmp \
-    "$image" "$@"
-}
-
-# Fail with the missing runtime path rather than an opaque activation error.
-# The dockerTools image has no base distribution. devenv shell activation uses the
-# conventional absolute shell path as well as env-based shebangs, so verify
-# both runtime paths before attempting activation.
-printf 'Checking image runtime contract: /usr/bin/env and /usr/bin/bash\n'
-run_image bash -c 'test -x /usr/bin/env && test -x /usr/bin/bash && command -v bash'
-
-run_devenv() {
-  "$runtime" run --rm --pull=never \
-    --user "$runner_uid:$runner_gid" \
-    --volume "$verification_workspace:/workspace:rw" \
-    -e DEVENV_ROOT=/workspace \
-    -e HOME=/workspace/.home \
-    -e TMPDIR=/workspace/.tmp \
-    "$image" devenv shell -- "$@"
-}
-
-printf 'Checking mounted devenv environment: %s\n' "$image"
-run_devenv command -v bun
-run_devenv command -v chromium
-run_devenv chromium --headless --no-sandbox --disable-gpu \
-  --dump-dom 'data:text/html,<title>senshac-runner</title>' \
-  2>/dev/null | grep -q '<title>senshac-runner</title>'
-printf '%s\n' NIX_DEVENV_MOUNTED_PROJECT_OK
+printf 'Checking direct runtime tools and non-root filesystem contract: %s\n' "$image"
+"$runtime" "${container_args[@]}" "$image" bash -eu -c '
+  uid="$(id -u)"
+  test "$uid" -gt 0
+  test "$HOME" = /home/runner
+  test -w "$HOME"
+  test -d /tmp && test -w /tmp
+  test "$(stat -c %a /tmp)" = 1777
+  test -w /workspace
+  if [ "${EXPECT_RUNNER_USER:-0}" = 1 ]; then
+    test "$uid" = 1000
+    test "$(id -un)" = runner
+  fi
+  for tool in bash tar gzip git gh bun node gcc unzip chromium jq curl; do
+    command -v "$tool"
+  done
+  home_probe="$(mktemp "$HOME/.oci-home.XXXXXX")"
+  tmp_probe="$(mktemp /tmp/.oci-tmp.XXXXXX)"
+  workspace_probe="$(mktemp /workspace/.oci-workspace.XXXXXX)"
+  rm -f -- "$home_probe" "$tmp_probe" "$workspace_probe"
+  printf "runtime uid=%s home=%s workspace=%s\\n" "$uid" "$HOME" "$PWD"
+'

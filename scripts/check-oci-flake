@@ -25,7 +25,15 @@ assert_output() {
   fi
 }
 
-assert_output senshac-runner-base eval --raw .#packages.x86_64-linux.baseRuntime.name
+assert_output senshac-runner-runtime eval --raw .#packages.x86_64-linux.runtime.name
+for output in runtime ociImage; do
+  closure="$("${nix_cmd[@]}" path-info --recursive ".#$output" --no-write-lock-file)"
+  if grep -Eiq '/nix/store/[^[:space:]]*(devenv|flox)' <<< "$closure"; then
+    printf 'Developer environment or Flox package leaked into .#%s closure\n' "$output" >&2
+    grep -Ei '/nix/store/[^[:space:]]*(devenv|flox)' <<< "$closure" >&2
+    exit 1
+  fi
+done
 # buildLayeredImage emits a Docker-compatible archive named after the image.
 # Keep this exact assertion so the output contract cannot silently drift.
 assert_output senshac-runner-oci.tar.gz eval --raw .#packages.x86_64-linux.ociImage.name
@@ -57,10 +65,11 @@ assert_metadata() {
 
 assert_metadata image 'senshac-runner-oci:modular'
 assert_metadata base_image none
-assert_metadata base_tools 'bash cacert coreutils devenv'
-assert_metadata activation 'mounted-project-devenv-lock'
-assert_metadata project_tools 'committed-devenv-manifest-lock'
+assert_metadata runtime_tools 'bash bun cacert chromium coreutils curl gcc git gh gnutar gzip jq nodejs unzip'
+assert_metadata runtime_user 'runner:1000:1000'
+assert_metadata writable_paths '/home/runner /tmp /workspace'
+assert_metadata runtime_contract 'direct-packaged-runtime'
 assert_metadata image_builder 'dockerTools.buildLayeredImage'
-[[ -n "${metadata[base_runtime]-}" ]] || { echo 'base_runtime metadata is empty' >&2; exit 1; }
+[[ -n "${metadata[runtime]-}" ]] || { echo 'runtime metadata is empty' >&2; exit 1; }
 [[ -n "${metadata[image_tarball]-}" ]] || { echo 'image_tarball metadata is empty' >&2; exit 1; }
 printf '%s\n' 'Nix flake, OCI build, and closure metadata validation passed'

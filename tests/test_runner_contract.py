@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -6,6 +7,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 VERIFY_NIX_BASE = (ROOT / "scripts/verify-nix-base").read_text()
+BUILD_CI_RUNNER = (ROOT / "scripts/build-ci-runner").read_text()
+
 
 class RunnerContractTests(unittest.TestCase):
     def run_script(self, name, *args, **env):
@@ -16,44 +19,30 @@ class RunnerContractTests(unittest.TestCase):
         result = self.run_script("check-devenv-lock")
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_nix_verification_uses_an_isolated_writable_workspace(self):
+    def test_image_build_is_independent_of_developer_environment(self):
+        self.assertNotIn("devenv", BUILD_CI_RUNNER.lower())
+        self.assertNotIn("check-devenv-lock", BUILD_CI_RUNNER)
+        self.assertIn('"$repo#ociImage"', BUILD_CI_RUNNER)
+
+    def test_verification_checks_rootless_identity_and_writable_mounts(self):
         self.assertIn('verification_workspace="$(mktemp -d', VERIFY_NIX_BASE)
-        self.assertIn('verification_home="$verification_workspace/.home"', VERIFY_NIX_BASE)
-        self.assertIn('verification_tmp="$verification_workspace/.tmp"', VERIFY_NIX_BASE)
-        self.assertIn('mkdir -m 700 -- "$verification_home" "$verification_tmp"', VERIFY_NIX_BASE)
-        self.assertIn('runner_uid="$(id -u)"', VERIFY_NIX_BASE)
-        self.assertIn('runner_gid="$(id -g)"', VERIFY_NIX_BASE)
-        self.assertIn("prepare_verification_workspace()", VERIFY_NIX_BASE)
         self.assertIn('git -C "$repo" archive --format=tar HEAD > "$archive"', VERIFY_NIX_BASE)
-        self.assertIn('rm -rf -- "$verification_workspace/.devenv"', VERIFY_NIX_BASE)
-        self.assertNotIn("--exclude='./.devenv'", VERIFY_NIX_BASE)
-        self.assertNotIn("--exclude='./.devenv.flake.nix'", VERIFY_NIX_BASE)
+        self.assertIn('container_args+=(--userns=keep-id:uid=1000,gid=1000 -e EXPECT_RUNNER_USER=1)', VERIFY_NIX_BASE)
+        self.assertIn('container_args+=(--user "$runner_uid:$runner_gid")', VERIFY_NIX_BASE)
         self.assertIn('trap cleanup EXIT', VERIFY_NIX_BASE)
-        self.assertIn('"$runtime" run --rm --pull=never --user 0:0', VERIFY_NIX_BASE)
-        self.assertIn("rm -rf -- /workspace/.??* /workspace/*", VERIFY_NIX_BASE)
         self.assertIn('rm -rf -- "$verification_workspace"', VERIFY_NIX_BASE)
-        self.assertLess(VERIFY_NIX_BASE.index("prepare_verification_workspace\n"),
-                        VERIFY_NIX_BASE.index("run_image()"))
-        self.assertEqual(VERIFY_NIX_BASE.count('--user "$runner_uid:$runner_gid"'), 2)
-        # Two host-user verification containers share the workspace; cleanup
-        # uses a third, root-owned container to remove Nix-owned paths safely.
-        self.assertEqual(VERIFY_NIX_BASE.count('--volume "$verification_workspace:/workspace:rw"'), 3)
-        cleanup_start = VERIFY_NIX_BASE.index("cleanup() {")
-        cleanup_end = VERIFY_NIX_BASE.index("\n}\ntrap cleanup EXIT", cleanup_start)
-        cleanup = VERIFY_NIX_BASE[cleanup_start:cleanup_end]
-        self.assertEqual(cleanup.count('--volume "$verification_workspace:/workspace:rw"'), 1)
-        self.assertIn('--user 0:0', cleanup)
-        self.assertIn('/workspace/.??* /workspace/*', cleanup)
-        verification_commands = VERIFY_NIX_BASE[VERIFY_NIX_BASE.index("run_image()"):]
-        self.assertEqual(verification_commands.count('--volume "$verification_workspace:/workspace:rw"'), 2)
-        self.assertEqual(VERIFY_NIX_BASE.count('-e HOME=/workspace/.home'), 2)
-        self.assertEqual(VERIFY_NIX_BASE.count('-e TMPDIR=/workspace/.tmp'), 2)
-        self.assertNotIn('--volume "$repo:/workspace:', VERIFY_NIX_BASE)
-        self.assertNotIn("--tmpfs /workspace/.devenv", VERIFY_NIX_BASE)
+        self.assertIn('test "$uid" -gt 0', VERIFY_NIX_BASE)
+        self.assertIn('test "$uid" = 1000', VERIFY_NIX_BASE)
+        self.assertIn('test "$(id -un)" = runner', VERIFY_NIX_BASE)
+        self.assertIn('test -w "$HOME"', VERIFY_NIX_BASE)
+        self.assertIn('test -w /workspace', VERIFY_NIX_BASE)
+        self.assertIn('test "$(stat -c %a /tmp)" = 1777', VERIFY_NIX_BASE)
+        self.assertIn('command -v "$tool"', VERIFY_NIX_BASE)
+        self.assertIn('mktemp "$HOME/.oci-home.XXXXXX"', VERIFY_NIX_BASE)
+        self.assertIn('mktemp /tmp/.oci-tmp.XXXXXX', VERIFY_NIX_BASE)
+        self.assertIn('mktemp /workspace/.oci-workspace.XXXXXX', VERIFY_NIX_BASE)
 
     def test_devenv_lock_matches_declared_unstable_input(self):
-        import json
-
         lock = json.loads((ROOT / "devenv.lock").read_text())
         checker = (ROOT / "scripts/check-devenv-lock").read_text()
         manifest = (ROOT / "devenv.yaml").read_text()
@@ -92,6 +81,7 @@ echo SENSHAC_RUNNER_SMOKE_OK
             result = self.run_script("smoke-ci-runner", "test-image",
                                     CONTAINER_RUNTIME=str(runtime))
             self.assertEqual(result.returncode, 0, result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
