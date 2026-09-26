@@ -76,7 +76,7 @@
               'image_tarball=${ociImage}' \
               'base_tools=bash cacert coreutils devenv' \
               'activation=mounted-project-devenv-lock' \
-              'project_tools=committed-devenv-lock' \
+              'project_tools=committed-devenv-manifest-lock' \
               'image_builder=dockerTools.buildLayeredImage' \
               'base_image=none' > "$out/metadata"
           '';
