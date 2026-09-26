@@ -1,8 +1,10 @@
 # Senshac Runner
 
-This is the focused CI and local-runner repository. It owns devenv
-containerization, rootless Podman/Act execution, and runner image publishing.
-It does not own the Astro application, Tina content, or media processing.
+This is the focused CI and local-runner repository. It owns the rootless,
+distroless OCI runner image, which packages CI tools directly, plus Podman/Act
+execution and image publishing. The separate devenv environment supports
+developer shells and tooling. This repository does not own the Astro
+application, Tina content, or media processing.
 
 The live web repository remains the checkout supplied to the runner. Validate
 runner changes against a clean web checkout before changing image tags or
