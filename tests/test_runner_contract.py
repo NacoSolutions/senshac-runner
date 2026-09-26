@@ -51,19 +51,33 @@ class RunnerContractTests(unittest.TestCase):
         self.assertNotIn('--volume "$repo:/workspace:', VERIFY_NIX_BASE)
         self.assertNotIn("--tmpfs /workspace/.devenv", VERIFY_NIX_BASE)
 
-    def test_devenv_lock_matches_declared_rolling_input(self):
+    def test_devenv_lock_matches_declared_unstable_input(self):
         import json
 
         lock = json.loads((ROOT / "devenv.lock").read_text())
         checker = (ROOT / "scripts/check-devenv-lock").read_text()
+        manifest = (ROOT / "devenv.yaml").read_text()
         root_inputs = lock["nodes"][lock["root"]]["inputs"]
-        self.assertEqual(root_inputs, {"nixpkgs": "nixpkgs"})
+        nixpkgs = lock["nodes"]["nixpkgs"]
+        self.assertEqual(lock["version"], 7)
+        self.assertEqual(root_inputs, {"devenv": "devenv", "nixpkgs": "nixpkgs"})
+        self.assertIn("url: github:NixOS/nixpkgs/nixpkgs-unstable", manifest)
+        self.assertIn("devenv", lock["nodes"])
         self.assertNotIn("git-hooks", lock["nodes"])
         self.assertNotIn("gitignore", lock["nodes"])
-        self.assertEqual(lock["nodes"]["nixpkgs"]["original"]["repo"], "devenv-nixpkgs")
-        self.assertEqual(lock["nodes"]["nixpkgs"]["original"]["ref"], "rolling")
-        self.assertNotIn("git-hooks", root_inputs)
-        self.assertNotIn("gitignore", checker)
+        self.assertEqual(nixpkgs["original"]["owner"], "NixOS")
+        self.assertEqual(nixpkgs["original"]["repo"], "nixpkgs")
+        self.assertEqual(nixpkgs["original"]["ref"], "nixpkgs-unstable")
+        self.assertEqual(nixpkgs["locked"]["owner"], "NixOS")
+        self.assertEqual(nixpkgs["locked"]["repo"], "nixpkgs")
+        self.assertTrue(nixpkgs["locked"]["rev"])
+        self.assertTrue(nixpkgs["locked"]["narHash"])
+        for name, node in lock["nodes"].items():
+            if name != lock["root"] and node["locked"]["type"] != "path":
+                self.assertTrue(node["locked"].get("rev"), name)
+                self.assertTrue(node["locked"].get("narHash"), name)
+        self.assertIn('Object.hasOwn(lock.nodes, name)', checker)
+        self.assertIn('JSON.stringify(["devenv", "nixpkgs"])', checker)
         self.assertNotIn("16ec914f6fb6f599ce988427d9d94efddf25fe6d", checker)
 
     def test_smoke_propagates_failures(self):
