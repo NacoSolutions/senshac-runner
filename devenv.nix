@@ -8,10 +8,6 @@
     typescript-language-server unzip gzip yq zellij nodejs_24 cacert
   ];
 
-  # devenv v1.8.1 expects the git-hooks.nix API pinned in devenv.lock.
-  # This runner declares no hooks, so keep the integration explicitly off.
-  git-hooks.enable = false;
-
   env.NODE_ENV = "development";
 
   enterShell = ''

@@ -18,6 +18,7 @@ class RunnerContractTests(unittest.TestCase):
 
     def test_nix_verification_uses_an_isolated_writable_workspace(self):
         self.assertIn('verification_workspace="$(mktemp -d', VERIFY_NIX_BASE)
+        self.assertNotIn('git-hooks.enable', (ROOT / "devenv.nix").read_text())
         self.assertIn('verification_home="$verification_workspace/.home"', VERIFY_NIX_BASE)
         self.assertIn('verification_tmp="$verification_workspace/.tmp"', VERIFY_NIX_BASE)
         self.assertIn('mkdir -m 700 -- "$verification_home" "$verification_tmp"', VERIFY_NIX_BASE)
@@ -33,7 +34,16 @@ class RunnerContractTests(unittest.TestCase):
         self.assertLess(VERIFY_NIX_BASE.index("prepare_verification_workspace\n"),
                         VERIFY_NIX_BASE.index("run_image()"))
         self.assertEqual(VERIFY_NIX_BASE.count('--user "$runner_uid:$runner_gid"'), 2)
-        self.assertEqual(VERIFY_NIX_BASE.count('--volume "$verification_workspace:/workspace:rw"'), 2)
+        # Two host-user verification containers share the workspace; cleanup
+        # uses a third, root-owned container to remove Nix-owned paths safely.
+        self.assertEqual(VERIFY_NIX_BASE.count('--volume "$verification_workspace:/workspace:rw"'), 3)
+        cleanup_start = VERIFY_NIX_BASE.index("cleanup() {")
+        cleanup_end = VERIFY_NIX_BASE.index("\n}\ntrap cleanup EXIT", cleanup_start)
+        cleanup = VERIFY_NIX_BASE[cleanup_start:cleanup_end]
+        self.assertEqual(cleanup.count('--volume "$verification_workspace:/workspace:rw"'), 1)
+        self.assertIn('--user 0:0', cleanup)
+        verification_commands = VERIFY_NIX_BASE[VERIFY_NIX_BASE.index("run_image()"):]
+        self.assertEqual(verification_commands.count('--volume "$verification_workspace:/workspace:rw"'), 2)
         self.assertEqual(VERIFY_NIX_BASE.count('-e HOME=/workspace/.home'), 2)
         self.assertEqual(VERIFY_NIX_BASE.count('-e TMPDIR=/workspace/.tmp'), 2)
         self.assertNotIn('--volume "$repo:/workspace:', VERIFY_NIX_BASE)
