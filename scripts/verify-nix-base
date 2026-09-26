@@ -5,28 +5,29 @@ runtime="${CONTAINER_RUNTIME:-docker}"
 image="${1:?Usage: scripts/verify-nix-base IMAGE}"
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Docker creates a tmpfs mountpoint inside the read-only bind mount. Create
-# that directory in the source checkout first; the tmpfs then hides it and
-# keeps all devenv state ephemeral. Reject symlinks so the preparation cannot
-# redirect a container mount outside the checkout.
-prepare_devenv_mountpoint() {
-  local devenv_dir="$repo/.devenv"
-  if [[ -L "$devenv_dir" || ( -e "$devenv_dir" && ! -d "$devenv_dir" ) ]]; then
-    printf 'Refusing unsafe devenv mountpoint: %s\n' "$devenv_dir" >&2
-    return 1
-  fi
-  mkdir -p -- "$devenv_dir"
+# devenv writes both .devenv and .devenv.flake.nix below its project root.
+# Verify an isolated copy so the checkout stays unchanged while the mounted
+# workspace remains writable for the complete devenv evaluation.
+verification_workspace="$(mktemp -d "${TMPDIR:-/tmp}/senshac-verify.XXXXXX")"
+cleanup() {
+  rm -rf -- "$verification_workspace"
 }
-prepare_devenv_mountpoint
+trap cleanup EXIT
+
+prepare_verification_workspace() {
+  tar -C "$repo" \
+    --exclude='./.devenv' \
+    --exclude='./.devenv.flake.nix' \
+    -cf - . | tar -C "$verification_workspace" -xf -
+}
+prepare_verification_workspace
 
 # Every non-base tool comes from the mounted project's committed devenv lock.
-# devenv creates project GC roots under .devenv; keep that state writable
-# without weakening the read-only checkout mount.
+# The writable copy is temporary and is removed by cleanup after verification.
 run_image() {
   "$runtime" run --rm --pull=never \
     --entrypoint /usr/bin/env \
-    --volume "$repo:/workspace:ro" \
-    --tmpfs /workspace/.devenv:rw \
+    --volume "$verification_workspace:/workspace:rw" \
     -e DEVENV_ROOT=/workspace \
     "$image" "$@"
 }
@@ -40,8 +41,7 @@ run_image bash -c 'test -x /usr/bin/env && test -x /usr/bin/bash && command -v b
 
 run_devenv() {
   "$runtime" run --rm --pull=never \
-    --volume "$repo:/workspace:ro" \
-    --tmpfs /workspace/.devenv:rw \
+    --volume "$verification_workspace:/workspace:rw" \
     -e DEVENV_ROOT=/workspace \
     "$image" devenv shell -- "$@"
 }

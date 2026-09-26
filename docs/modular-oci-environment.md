@@ -70,17 +70,22 @@ remains minimal and immutable.
 Example:
 
 ```sh
-# Docker needs the nested mountpoint to exist before the parent read-only bind.
-mkdir -p "$PWD/.devenv"
+# Use an isolated writable copy because devenv creates .devenv and
+# .devenv.flake.nix below its project root.
+verification_workspace="$(mktemp -d)"
+tar -C "$PWD" --exclude='./.devenv' \\
+  --exclude='./.devenv.flake.nix' -cf - . |
+  tar -C "$verification_workspace" -xf -
 docker run --rm -e DEVENV_ROOT=/workspace \\
-  -v "$PWD:/workspace:ro" \\
-  --tmpfs /workspace/.devenv:rw \\
+  -v "$verification_workspace:/workspace:rw" \\
   senshac-runner-oci:modular devenv shell -- command -v bun
+rm -rf "$verification_workspace"
 ```
 
-The verification script creates this ignored directory in the source checkout,
-rejects a symlink at that path, and overlays it with an ephemeral writable
-`tmpfs`. The checkout remains read-only inside the container.
+The verification script copies the checkout to a temporary workspace, excludes
+previous devenv state and generated `.devenv.flake.nix`, and removes the copy
+on exit. The original checkout stays untouched while the container can write
+all devenv state needed for a meaningful evaluation.
 
 ## Official devenv cache and Cargo measurement
 
