@@ -5,33 +5,97 @@ runtime="${CONTAINER_RUNTIME:-docker}"
 image="${1:?Usage: scripts/verify-nix-base IMAGE}"
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Every non-base tool comes from the mounted project's committed Flox lock.
+# devenv writes both .devenv and .devenv.flake.nix below its project root.
+# Verify an isolated copy so the checkout stays unchanged while the mounted
+# workspace remains writable for the complete devenv evaluation.
+verification_workspace="$(mktemp -d "${TMPDIR:-/tmp}/senshac-verify.XXXXXX")"
+cleanup() {
+  # Nix can leave root-owned/read-only generated state anywhere below the
+  # temporary project. Let the image's root account remove all of it before
+  # the host-side cleanup attempt; this also removes generated devenv flakes.
+  if [[ -d "$verification_workspace" ]]; then
+    "$runtime" run --rm --pull=never --user 0:0 \
+      --entrypoint /usr/bin/env \
+      --volume "$verification_workspace:/workspace:rw" \
+      "$image" sh -c 'rm -rf -- /workspace/.??* /workspace/*' 2>/dev/null || true
+  fi
+  rm -rf -- "$verification_workspace" || {
+    chmod -R u+rwx "$verification_workspace" 2>/dev/null || true
+    rm -rf -- "$verification_workspace"
+  }
+}
+trap cleanup EXIT
+verification_home="$verification_workspace/.home"
+verification_tmp="$verification_workspace/.tmp"
+runner_uid="$(id -u)"
+runner_gid="$(id -g)"
+# The OCI image's /tmp is not guaranteed writable for the host uid; devenv
+# creates temporary directories there unless TMPDIR points at the workspace.
+mkdir -m 700 -- "$verification_home" "$verification_tmp"
+
+prepare_verification_workspace() {
+  # Archive HEAD rather than the working tree: verification consumes exactly
+  # the committed manifest and lock and cannot copy local mutations into CI.
+  # Keep the archive separate so its inputs can be inspected before devenv
+  # generates any project state.
+  archive="$(mktemp "${TMPDIR:-/tmp}/senshac-source.XXXXXX.tar")"
+  git -C "$repo" archive --format=tar HEAD > "$archive"
+  if tar -xOf "$archive" devenv.nix | grep -Fq 'git-hooks.enable'; then
+    echo 'archive HEAD unexpectedly contains git-hooks.enable' >&2
+    return 1
+  fi
+  tar -C "$verification_workspace" -xf "$archive"
+  rm -f -- "$archive"
+  # The workspace is new, but remove generated state defensively so a future
+  # workspace/reuse change cannot make devenv evaluate a stale generated flake.
+  rm -rf -- "$verification_workspace/.devenv" \
+    "$verification_workspace/.devenv.flake.nix"
+  test ! -e "$verification_workspace/.devenv.flake.nix"
+}
+prepare_verification_workspace
+
+# Every non-base tool comes from the mounted project's committed devenv lock.
+# The writable copy is temporary and is removed by cleanup after verification.
 run_image() {
   "$runtime" run --rm --pull=never \
+    --user "$runner_uid:$runner_gid" \
     --entrypoint /usr/bin/env \
-    --volume "$repo:/workspace:ro" \
-    -e FLOX_PROJECT=/workspace \
+    --volume "$verification_workspace:/workspace:rw" \
+    -e DEVENV_ROOT=/workspace \
+    -e HOME=/workspace/.home \
+    -e TMPDIR=/workspace/.tmp \
     "$image" "$@"
 }
 
 # Fail with the missing runtime path rather than an opaque activation error.
-# The dockerTools image has no base distribution. Flox activation uses the
+# The dockerTools image has no base distribution. devenv shell activation uses the
 # conventional absolute shell path as well as env-based shebangs, so verify
 # both runtime paths before attempting activation.
 printf 'Checking image runtime contract: /usr/bin/env and /usr/bin/bash\n'
 run_image bash -c 'test -x /usr/bin/env && test -x /usr/bin/bash && command -v bash'
 
-run_flox() {
+run_devenv() {
   "$runtime" run --rm --pull=never \
-    --volume "$repo:/workspace:ro" \
-    -e FLOX_PROJECT=/workspace \
-    "$image" flox activate -- "$@"
+    --user "$runner_uid:$runner_gid" \
+    --volume "$verification_workspace:/workspace:rw" \
+    -e DEVENV_ROOT=/workspace \
+    -e HOME=/workspace/.home \
+    -e TMPDIR=/workspace/.tmp \
+    "$image" devenv shell -- "$@"
 }
 
-printf 'Checking mounted Flox environment: %s\n' "$image"
-run_flox command -v bun
-run_flox command -v chromium
-run_flox chromium --headless --no-sandbox --disable-gpu \
+printf 'Checking mounted devenv environment: %s\n' "$image"
+run_devenv command -v bun
+# Inspect the generated input after the first evaluation. This proves the
+# effective flake came from the archived HEAD rather than a stale project
+# cache, and catches the historical recursive git-hooks setting directly.
+test -f "$verification_workspace/.devenv.flake.nix"
+if grep -Fq 'git-hooks.enable = false' "$verification_workspace/.devenv.flake.nix"; then
+  echo 'generated devenv flake contains stale git-hooks.enable = false' >&2
+  exit 1
+fi
+run_devenv command -v chromium
+run_devenv chromium --headless --no-sandbox --disable-gpu \
   --dump-dom 'data:text/html,<title>senshac-runner</title>' \
   2>/dev/null | grep -q '<title>senshac-runner</title>'
-printf '%s\n' NIX_FLOX_MOUNTED_PROJECT_OK
+printf '%s\n' NIX_DEVENV_MOUNTED_PROJECT_OK

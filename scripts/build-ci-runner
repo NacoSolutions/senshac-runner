@@ -15,15 +15,15 @@ require() {
 require nix
 require "$runtime"
 
-# Flox remains the package contract and is checked before Nix assembles the
+# devenv remains the package contract and is checked before Nix assembles the
 # immutable OCI closure. The image itself is deliberately produced only by
-# dockerTools; it never invokes the Flox container builder or apt-get.
-if [[ "${SKIP_FLOX_LOCK_CHECK:-0}" != 1 ]]; then
-  "$repo/scripts/check-flox-lock"
+# dockerTools; it never invokes the devenv container builder or apt-get.
+if [[ "${SKIP_DEVENV_LOCK_CHECK:-0}" != 1 ]]; then
+  "$repo/scripts/check-devenv-lock"
 fi
 
-# Use the official cache declared by the pinned Flox release rather than
-# compiling the Rust-based Flox closure on the image builder.
+# Use the official cache declared by the pinned devenv release rather than
+# compiling the Rust-based devenv closure on the image builder.
 nix_cmd=(nix --accept-flake-config --extra-experimental-features 'nix-command flakes')
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT

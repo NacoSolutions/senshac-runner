@@ -4,7 +4,7 @@ Seed: `senshac-50a2`
 
 The CI runner image is the shared execution surface for GitHub Actions and
 local Act runs. It is assembled by the pinned Nix flake with
-`pkgs.dockerTools.buildLayeredImage`, then published to. Flox remains the
+`pkgs.dockerTools.buildLayeredImage`, then published to. devenv remains the
 committed manifest/lock source and is checked before the Nix build; the image
 contains no apt-get step or separate CI browser install.
 
@@ -15,7 +15,7 @@ ghcr.io/nacosolutions/senshac-runner:sha-<commit>
 
 ## Why
 
-Direct `flox activate` in GitHub CI rebuilds the environment from a clean Nix
+Direct `devenv shell` in GitHub CI rebuilds the environment from a clean Nix
 cache on every run. A single bad fixed-output hash in a custom package can fail
 CI before the project gate starts, while local machines pass from cache. The
 runner image moves that realization step to one image-publishing workflow and
@@ -30,7 +30,7 @@ dx scripts/build-ci-runner senshac-ci-runner:latest
 The script defaults to rootless Podman, builds the flake's `ociImage` with
 Nix, and loads its Docker-compatible archive. `dockerTools` is the sole image
 builder; the publication workflow uses Docker and the same script works with
-either runtime. The image contains only the Flox CLI/runtime, shell, and
+either runtime. The image contains only the devenv CLI/runtime, shell, and
 certificates. The mounted project's lock supplies Bun, Chromium, and all other
 tools. Override the runtime when needed:
 
@@ -58,20 +58,20 @@ scripts/verify-ci-runner-local senshac-runner:debug
 
 For an already-built image, run `scripts/smoke-ci-runner IMAGE` (or set
 `CONTAINER_RUNTIME=docker`). The helper mounts the verification script
-read-only and runs it by file path through Flox's image entrypoint. It first
+read-only and runs it by file path through devenv's image entrypoint. It first
 requires a deliberate exit-42 probe, then requires the successful check's
 completion marker. This verifies both execution and failure propagation.
-The Nix image's default entrypoint is a Flox activation wrapper. It requires
-the mounted project's `.flox/env/manifest.lock`; activation exposes Bun,
+The Nix image's default entrypoint is a devenv shell activation wrapper. It requires
+the mounted project's `devenv.lock`; activation exposes Bun,
 Chromium, and every declared tool without installing packages or mutating the
-lock. The smoke check explicitly runs `flox activate -- command -v bun`,
-`flox activate -- command -v chromium`, and a headless Chromium launch.
+lock. The smoke check explicitly runs `devenv shell -- command -v bun`,
+`devenv shell -- command -v chromium`, and a headless Chromium launch.
 
 The script attempts to start the user Podman socket with
 `systemctl --user start podman.socket` and exports `DOCKER_HOST` when the
 socket is available. The socket is not required by the local build or smoke
 test, but it is required by Act. Rootless Podman, Nix, and a Git worktree are
-prerequisites; the committed Flox lock must pass validation.
+prerequisites; the committed devenv lock must pass validation.
 
 ## Local CI
 
@@ -94,29 +94,29 @@ images; it is not part of the no-push image smoke test.
 
 ## Update Contract
 
-When `.flox/env/manifest.toml` or `.flox/env/manifest.lock` changes, publish a
+When `devenv.nix` or `devenv.lock` changes, publish a
 new image before expecting GitHub CI to use new tools. The runner contract
 requires `tar` to be available on `PATH`; `actions/setup-node` uses it to
-extract the Node distribution. The manifest installs Flox's `gnutar` and
+extract the Node distribution. The manifest installs devenv's `gnutar` and
 `gzip` packages, and the smoke test round-trips a gzip-compressed archive
 with `--strip-components=1`. The manifest records `chromium` as the browser dependency and its committed
 lock resolves the matching runtime. No browser download, apt-get step, or
 second CI installation is allowed.
 
-Use the Flox CLI to reconcile package changes and commit both manifest and
-lockfile. `scripts/check-flox-lock` checks manifest equality and resolved
+Use the devenv CLI to reconcile package changes and commit both manifest and
+lockfile. `scripts/check-devenv-lock` checks manifest equality and resolved
 package outputs for each requested system before image construction.
 A manifest declaration alone is insufficient: the original missing-tar
 failure came from an unresolved `gnutar` entry in the committed lockfile.
 Keep Chromium's manifest and committed lock entry together; runtime checks use
 the activated PATH rather than installing browsers or libraries.
-Local Flox repaired that entry automatically, making the earlier local/CI
+Local devenv repaired that entry automatically, making the earlier local/CI
 comparison use different inputs. Runtime differences remain a separate
 verification question.
 
 The Nix closure includes only the activation bootstrap. `scripts/verify-nix-base`
 checks the mounted-project contract, including `command -v bun`,
-`command -v chromium`, and a headless Chromium launch after Flox activation. The publish workflow runs
+`command -v chromium`, and a headless Chromium launch after devenv shell activation. The publish workflow runs
 on main for those files and can also be started manually from GitHub Actions.
 PR verification builds the comparison environments and Nix OCI archive. The
 read-only PR workflow builds and smoke-tests a local Docker image, keeping
@@ -127,7 +127,7 @@ then advances `latest`.
 Fast regression gates (Python 3.11+ and Bash):
 
 ```bash
-scripts/check-flox-lock
+scripts/check-devenv-lock
 python3 -m unittest discover -s tests -v
 for script in scripts/*; do bash -n "$script"; done
 ```

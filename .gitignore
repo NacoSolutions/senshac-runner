@@ -1,8 +1,6 @@
 .reference/
 .direnv/
-.flox/cache/
-.flox/log/
-.flox/run/
+.devenv/
 .wrangler/
 # build output
 dist/
@@ -11,14 +9,11 @@ dist/
 
 # dependencies
 node_modules/
-
 # logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-
-
 # environment variables
 .env
 .env.pages
@@ -35,22 +30,16 @@ secrets/**/*.plain.env
 secrets/**/*.local.env
 secrets/**/*.key
 secrets/**/*.pem
-
 # macOS-specific files
 .DS_Store
-
 # jetbrains setting folder
 .idea/
-
 .claude/
-
 # optimized images (generated at build)
 public/_optimized/
 media/processed/
 .media-input/
-
 .bak
-
 # Testing
 coverage/
 playwright-report/

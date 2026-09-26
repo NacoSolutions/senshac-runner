@@ -5,11 +5,11 @@ on:
     branches:
       - main
     paths:
-      - ".flox/env/manifest.toml"
-      - ".flox/env/manifest.lock"
+      - "devenv.nix"
+      - "devenv.lock"
       - ".github/workflows/publish-ci-runner.yml"
       - "scripts/build-ci-runner"
-      - "scripts/check-flox-lock"
+      - "scripts/check-devenv-lock"
       - "scripts/smoke-ci-runner"
       - "scripts/verify-ci-runner"
       - "scripts/verify-nix-base"
