@@ -25,11 +25,15 @@ class RunnerContractTests(unittest.TestCase):
         self.assertIn('runner_uid="$(id -u)"', VERIFY_NIX_BASE)
         self.assertIn('runner_gid="$(id -g)"', VERIFY_NIX_BASE)
         self.assertIn("prepare_verification_workspace()", VERIFY_NIX_BASE)
-        self.assertIn('git -C "$repo" archive --format=tar HEAD', VERIFY_NIX_BASE)
+        self.assertIn('git -C "$repo" archive --format=tar HEAD > "$archive"', VERIFY_NIX_BASE)
+        self.assertIn("tar -xOf \"$archive\" devenv.nix | grep -Fq 'git-hooks.enable'", VERIFY_NIX_BASE)
+        self.assertIn('rm -rf -- "$verification_workspace/.devenv"', VERIFY_NIX_BASE)
+        self.assertIn("grep -Fq 'git-hooks.enable = false' \"$verification_workspace/.devenv.flake.nix\"", VERIFY_NIX_BASE)
         self.assertNotIn("--exclude='./.devenv'", VERIFY_NIX_BASE)
         self.assertNotIn("--exclude='./.devenv.flake.nix'", VERIFY_NIX_BASE)
         self.assertIn('trap cleanup EXIT', VERIFY_NIX_BASE)
         self.assertIn('"$runtime" run --rm --pull=never --user 0:0', VERIFY_NIX_BASE)
+        self.assertIn("rm -rf -- /workspace/.??* /workspace/*", VERIFY_NIX_BASE)
         self.assertIn('rm -rf -- "$verification_workspace"', VERIFY_NIX_BASE)
         self.assertLess(VERIFY_NIX_BASE.index("prepare_verification_workspace\n"),
                         VERIFY_NIX_BASE.index("run_image()"))
@@ -42,6 +46,7 @@ class RunnerContractTests(unittest.TestCase):
         cleanup = VERIFY_NIX_BASE[cleanup_start:cleanup_end]
         self.assertEqual(cleanup.count('--volume "$verification_workspace:/workspace:rw"'), 1)
         self.assertIn('--user 0:0', cleanup)
+        self.assertIn('/workspace/.??* /workspace/*', cleanup)
         verification_commands = VERIFY_NIX_BASE[VERIFY_NIX_BASE.index("run_image()"):]
         self.assertEqual(verification_commands.count('--volume "$verification_workspace:/workspace:rw"'), 2)
         self.assertEqual(VERIFY_NIX_BASE.count('-e HOME=/workspace/.home'), 2)

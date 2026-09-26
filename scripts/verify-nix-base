@@ -10,14 +10,14 @@ repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # workspace remains writable for the complete devenv evaluation.
 verification_workspace="$(mktemp -d "${TMPDIR:-/tmp}/senshac-verify.XXXXXX")"
 cleanup() {
-  # Nix's chroot builder can create root-owned/read-only paths below HOME even
-  # when the container itself runs as the host user. Let the image's root
-  # account remove those paths before the host-side cleanup attempt.
+  # Nix can leave root-owned/read-only generated state anywhere below the
+  # temporary project. Let the image's root account remove all of it before
+  # the host-side cleanup attempt; this also removes generated devenv flakes.
   if [[ -d "$verification_workspace" ]]; then
     "$runtime" run --rm --pull=never --user 0:0 \
       --entrypoint /usr/bin/env \
       --volume "$verification_workspace:/workspace:rw" \
-      "$image" rm -rf -- /workspace/.home /workspace/.tmp 2>/dev/null || true
+      "$image" sh -c 'rm -rf -- /workspace/.??* /workspace/*' 2>/dev/null || true
   fi
   rm -rf -- "$verification_workspace" || {
     chmod -R u+rwx "$verification_workspace" 2>/dev/null || true
@@ -36,8 +36,21 @@ mkdir -m 700 -- "$verification_home" "$verification_tmp"
 prepare_verification_workspace() {
   # Archive HEAD rather than the working tree: verification consumes exactly
   # the committed manifest and lock and cannot copy local mutations into CI.
-  git -C "$repo" archive --format=tar HEAD | \
-    tar -C "$verification_workspace" -xf -
+  # Keep the archive separate so its inputs can be inspected before devenv
+  # generates any project state.
+  archive="$(mktemp "${TMPDIR:-/tmp}/senshac-source.XXXXXX.tar")"
+  git -C "$repo" archive --format=tar HEAD > "$archive"
+  if tar -xOf "$archive" devenv.nix | grep -Fq 'git-hooks.enable'; then
+    echo 'archive HEAD unexpectedly contains git-hooks.enable' >&2
+    return 1
+  fi
+  tar -C "$verification_workspace" -xf "$archive"
+  rm -f -- "$archive"
+  # The workspace is new, but remove generated state defensively so a future
+  # workspace/reuse change cannot make devenv evaluate a stale generated flake.
+  rm -rf -- "$verification_workspace/.devenv" \
+    "$verification_workspace/.devenv.flake.nix"
+  test ! -e "$verification_workspace/.devenv.flake.nix"
 }
 prepare_verification_workspace
 
@@ -73,6 +86,14 @@ run_devenv() {
 
 printf 'Checking mounted devenv environment: %s\n' "$image"
 run_devenv command -v bun
+# Inspect the generated input after the first evaluation. This proves the
+# effective flake came from the archived HEAD rather than a stale project
+# cache, and catches the historical recursive git-hooks setting directly.
+test -f "$verification_workspace/.devenv.flake.nix"
+if grep -Fq 'git-hooks.enable = false' "$verification_workspace/.devenv.flake.nix"; then
+  echo 'generated devenv flake contains stale git-hooks.enable = false' >&2
+  exit 1
+fi
 run_devenv command -v chromium
 run_devenv chromium --headless --no-sandbox --disable-gpu \
   --dump-dom 'data:text/html,<title>senshac-runner</title>' \
