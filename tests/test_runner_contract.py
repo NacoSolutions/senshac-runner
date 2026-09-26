@@ -5,6 +5,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+VERIFY_NIX_BASE = (ROOT / "scripts/verify-nix-base").read_text()
 
 class RunnerContractTests(unittest.TestCase):
     def run_script(self, name, *args, **env):
@@ -14,6 +15,10 @@ class RunnerContractTests(unittest.TestCase):
     def test_resolved_lock_passes(self):
         result = self.run_script("check-devenv-lock")
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_nix_verification_keeps_project_read_only_with_writable_devenv_state(self):
+        self.assertEqual(VERIFY_NIX_BASE.count('--volume "$repo:/workspace:ro"'), 2)
+        self.assertEqual(VERIFY_NIX_BASE.count("--tmpfs /workspace/.devenv:rw"), 2)
 
     def test_smoke_propagates_failures(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -6,10 +6,13 @@ image="${1:?Usage: scripts/verify-nix-base IMAGE}"
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Every non-base tool comes from the mounted project's committed devenv lock.
+# devenv creates project GC roots under .devenv; keep that state writable
+# without weakening the read-only checkout mount.
 run_image() {
   "$runtime" run --rm --pull=never \
     --entrypoint /usr/bin/env \
     --volume "$repo:/workspace:ro" \
+    --tmpfs /workspace/.devenv:rw \
     -e DEVENV_ROOT=/workspace \
     "$image" "$@"
 }
@@ -24,6 +27,7 @@ run_image bash -c 'test -x /usr/bin/env && test -x /usr/bin/bash && command -v b
 run_devenv() {
   "$runtime" run --rm --pull=never \
     --volume "$repo:/workspace:ro" \
+    --tmpfs /workspace/.devenv:rw \
     -e DEVENV_ROOT=/workspace \
     "$image" devenv shell -- "$@"
 }
