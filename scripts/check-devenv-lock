@@ -15,27 +15,16 @@ if (!lock.nodes || typeof lock.nodes !== "object" || !lock.nodes[lock.root]) {
   throw new Error("devenv.lock has no root node");
 }
 const rootInputs = lock.nodes[lock.root].inputs;
-if (rootInputs?.nixpkgs !== "nixpkgs" ||
-    rootInputs?.["git-hooks"] !== "git-hooks" ||
-    JSON.stringify(rootInputs?.["pre-commit-hooks"]) !== JSON.stringify(["git-hooks"])) {
-  throw new Error("devenv.lock root does not contain the declared nixpkgs, git-hooks, and pre-commit-hooks inputs");
+if (!rootInputs || typeof rootInputs !== "object" ||
+    JSON.stringify(Object.keys(rootInputs).sort()) !== JSON.stringify(["nixpkgs"]) ||
+    rootInputs.nixpkgs !== "nixpkgs") {
+  throw new Error("devenv.lock root does not match the declared nixpkgs input");
 }
-for (const name of ["nixpkgs", "git-hooks", "gitignore", "flake-compat"]) {
-  const node = lock.nodes[name];
-  if (!node?.locked?.rev) {
-    throw new Error(`devenv.lock input ${name} has no pinned revision`);
-  }
+const nixpkgs = lock.nodes.nixpkgs;
+if (!nixpkgs?.locked?.rev || !nixpkgs.locked.narHash ||
+    nixpkgs.original?.repo !== "devenv-nixpkgs" ||
+    nixpkgs.original?.ref !== "rolling") {
+  throw new Error("devenv.lock nixpkgs input does not match devenv.yaml rolling policy");
 }
-// This revision is compatible with devenv v1.8.1 and the pinned rolling
-// nixpkgs input. Keep the resolved NAR hash so CI cannot silently select a
-// different source tree.
-if (lock.nodes["git-hooks"].locked.rev !== "16ec914f6fb6f599ce988427d9d94efddf25fe6d" ||
-    lock.nodes["git-hooks"].locked.narHash !== "sha256-wibppH3g/E2lxU43ZQHC5yA/7kIKLGxVEnsnVK1BtRg=") {
-  throw new Error("devenv.lock git-hooks input is incompatible with devenv v1.8.1");
-}
-if (lock.nodes.nixpkgs.original?.repo !== "devenv-nixpkgs" ||
-    lock.nodes.nixpkgs.original?.ref !== "rolling") {
-  throw new Error("devenv.lock nixpkgs input does not match devenv.yaml");
-}
-console.log(`devenv lock complete: ${Object.keys(lock.nodes).length} locked inputs (version ${lock.version})`);
+console.log(`devenv lock complete: ${Object.keys(lock.nodes).length - 1} locked inputs (version ${lock.version})`);
 JS

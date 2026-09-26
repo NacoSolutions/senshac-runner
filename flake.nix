@@ -1,18 +1,8 @@
 {
   description = "Senshac Runner devenv OCI image";
 
-  # Use devenv's release closure instead of the nixpkgs package. The latter
-  # currently applies a nix-2.24 patch that no longer matches its source.
-  nixConfig = {
-    extra-substituters = [ "https://devenv.cachix.org" ];
-    extra-trusted-public-keys = [
-      "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
-    ];
-  };
-
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
-  inputs.devenv.url = "github:cachix/devenv/v1.8.1";
-  outputs = { self, nixpkgs, devenv, ... }:
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  outputs = { self, nixpkgs, ... }:
     let
       systems = [ "x86_64-linux" ];
       forEachSystem = f: nixpkgs.lib.genAttrs systems (system: f (import nixpkgs { inherit system; }));
@@ -23,7 +13,7 @@
             bashInteractive cacert coreutils curl gnutar gzip git gh jq
             bun chromium gcc nodejs_22 unzip
           ];
-          devenvPackage = devenv.packages.${pkgs.system}.devenv;
+          devenvPackage = pkgs.devenv;
           runnerPackagesWithDevenv = runnerPackages ++ [ devenvPackage ];
           baseRuntime = pkgs.buildEnv {
             name = "senshac-runner-base";

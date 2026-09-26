@@ -18,7 +18,6 @@ class RunnerContractTests(unittest.TestCase):
 
     def test_nix_verification_uses_an_isolated_writable_workspace(self):
         self.assertIn('verification_workspace="$(mktemp -d', VERIFY_NIX_BASE)
-        self.assertNotIn('git-hooks.enable', (ROOT / "devenv.nix").read_text())
         self.assertIn('verification_home="$verification_workspace/.home"', VERIFY_NIX_BASE)
         self.assertIn('verification_tmp="$verification_workspace/.tmp"', VERIFY_NIX_BASE)
         self.assertIn('mkdir -m 700 -- "$verification_home" "$verification_tmp"', VERIFY_NIX_BASE)
@@ -26,9 +25,7 @@ class RunnerContractTests(unittest.TestCase):
         self.assertIn('runner_gid="$(id -g)"', VERIFY_NIX_BASE)
         self.assertIn("prepare_verification_workspace()", VERIFY_NIX_BASE)
         self.assertIn('git -C "$repo" archive --format=tar HEAD > "$archive"', VERIFY_NIX_BASE)
-        self.assertIn("tar -xOf \"$archive\" devenv.nix | grep -Fq 'git-hooks.enable'", VERIFY_NIX_BASE)
         self.assertIn('rm -rf -- "$verification_workspace/.devenv"', VERIFY_NIX_BASE)
-        self.assertIn("grep -Fq 'git-hooks.enable = false' \"$verification_workspace/.devenv.flake.nix\"", VERIFY_NIX_BASE)
         self.assertNotIn("--exclude='./.devenv'", VERIFY_NIX_BASE)
         self.assertNotIn("--exclude='./.devenv.flake.nix'", VERIFY_NIX_BASE)
         self.assertIn('trap cleanup EXIT', VERIFY_NIX_BASE)
@@ -54,12 +51,20 @@ class RunnerContractTests(unittest.TestCase):
         self.assertNotIn('--volume "$repo:/workspace:', VERIFY_NIX_BASE)
         self.assertNotIn("--tmpfs /workspace/.devenv", VERIFY_NIX_BASE)
 
-    def test_devenv_lock_matches_pinned_devenv_release(self):
-        self.assertIn('devenv v1.8.1', (ROOT / "scripts/check-devenv-lock").read_text())
-        self.assertIn('16ec914f6fb6f599ce988427d9d94efddf25fe6d',
-                      (ROOT / "devenv.lock").read_text())
-        self.assertIn('sha256-wibppH3g/E2lxU43ZQHC5yA/7kIKLGxVEnsnVK1BtRg=',
-                      (ROOT / "devenv.lock").read_text())
+    def test_devenv_lock_matches_declared_rolling_input(self):
+        import json
+
+        lock = json.loads((ROOT / "devenv.lock").read_text())
+        checker = (ROOT / "scripts/check-devenv-lock").read_text()
+        root_inputs = lock["nodes"][lock["root"]]["inputs"]
+        self.assertEqual(root_inputs, {"nixpkgs": "nixpkgs"})
+        self.assertNotIn("git-hooks", lock["nodes"])
+        self.assertNotIn("gitignore", lock["nodes"])
+        self.assertEqual(lock["nodes"]["nixpkgs"]["original"]["repo"], "devenv-nixpkgs")
+        self.assertEqual(lock["nodes"]["nixpkgs"]["original"]["ref"], "rolling")
+        self.assertNotIn("git-hooks", root_inputs)
+        self.assertNotIn("gitignore", checker)
+        self.assertNotIn("16ec914f6fb6f599ce988427d9d94efddf25fe6d", checker)
 
     def test_smoke_propagates_failures(self):
         with tempfile.TemporaryDirectory() as directory:
