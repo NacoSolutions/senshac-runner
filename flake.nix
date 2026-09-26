@@ -10,7 +10,7 @@
         let
           runnerPackages = with pkgs; [
             bashInteractive cacert coreutils curl gnutar gzip git gh jq devenv
-            bun chromium gcc nodejs_24 unzip
+            bun chromium gcc nodejs_22 unzip
           ];
           baseRuntime = pkgs.buildEnv {
             name = "senshac-runner-base";
