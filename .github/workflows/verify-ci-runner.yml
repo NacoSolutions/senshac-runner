@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'devenv.nix'
+      - 'devenv.yaml'
       - 'devenv.lock'
       - 'scripts/build-ci-runner'
       - 'scripts/check-devenv-lock'
