@@ -13,6 +13,10 @@ cleanup() {
   rm -rf -- "$verification_workspace"
 }
 trap cleanup EXIT
+verification_home="$verification_workspace/.home"
+runner_uid="$(id -u)"
+runner_gid="$(id -g)"
+mkdir -m 700 -- "$verification_home"
 
 prepare_verification_workspace() {
   tar -C "$repo" \
@@ -26,9 +30,11 @@ prepare_verification_workspace
 # The writable copy is temporary and is removed by cleanup after verification.
 run_image() {
   "$runtime" run --rm --pull=never \
+    --user "$runner_uid:$runner_gid" \
     --entrypoint /usr/bin/env \
     --volume "$verification_workspace:/workspace:rw" \
     -e DEVENV_ROOT=/workspace \
+    -e HOME=/workspace/.home \
     "$image" "$@"
 }
 
@@ -41,8 +47,10 @@ run_image bash -c 'test -x /usr/bin/env && test -x /usr/bin/bash && command -v b
 
 run_devenv() {
   "$runtime" run --rm --pull=never \
+    --user "$runner_uid:$runner_gid" \
     --volume "$verification_workspace:/workspace:rw" \
     -e DEVENV_ROOT=/workspace \
+    -e HOME=/workspace/.home \
     "$image" devenv shell -- "$@"
 }
 
