@@ -56,7 +56,9 @@ class RunnerContractTests(unittest.TestCase):
 
     def test_devenv_lock_matches_pinned_devenv_release(self):
         self.assertIn('devenv v1.8.1', (ROOT / "scripts/check-devenv-lock").read_text())
-        self.assertIn('fa466640195d38ec97cf0493d6d6882bc4d14969',
+        self.assertIn('16ec914f6fb6f599ce988427d9d94efddf25fe6d',
+                      (ROOT / "devenv.lock").read_text())
+        self.assertIn('sha256-wibppH3g/E2lxU43ZQHC5yA/7kIKLGxVEnsnVK1BtRg=',
                       (ROOT / "devenv.lock").read_text())
 
     def test_smoke_propagates_failures(self):
