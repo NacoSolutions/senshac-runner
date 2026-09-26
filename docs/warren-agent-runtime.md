@@ -10,6 +10,10 @@ exercises Node/Web API compatibility that Bun 1.3.13 does not fully provide.
 Warren primarily needs to inspect repositories, edit files, run lightweight checks,
 update Seeds, and prepare pull requests.
 
+## Post-rotation smoke-test finding
+
+After credential rotation, read-only Git remote access worked, while GitHub CLI authentication was unavailable in the agent sandbox. This observation alone does not establish that GitHub App authentication is broken.
+
 ## Runtime split
 
 ```text
