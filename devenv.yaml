@@ -7,3 +7,7 @@ inputs:
     inputs:
       nixpkgs:
         follows: nixpkgs
+  # devenv v1.8.1's generated flake exposes this compatibility alias. Declare
+  # the same follows edge so the committed project graph matches evaluation.
+  pre-commit-hooks:
+    follows: git-hooks

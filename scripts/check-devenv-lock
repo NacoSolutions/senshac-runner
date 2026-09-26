@@ -15,8 +15,10 @@ if (!lock.nodes || typeof lock.nodes !== "object" || !lock.nodes[lock.root]) {
   throw new Error("devenv.lock has no root node");
 }
 const rootInputs = lock.nodes[lock.root].inputs;
-if (rootInputs?.nixpkgs !== "nixpkgs" || rootInputs?.["git-hooks"] !== "git-hooks") {
-  throw new Error("devenv.lock root does not contain the declared nixpkgs and git-hooks inputs");
+if (rootInputs?.nixpkgs !== "nixpkgs" ||
+    rootInputs?.["git-hooks"] !== "git-hooks" ||
+    JSON.stringify(rootInputs?.["pre-commit-hooks"]) !== JSON.stringify(["git-hooks"])) {
+  throw new Error("devenv.lock root does not contain the declared nixpkgs, git-hooks, and pre-commit-hooks inputs");
 }
 for (const name of ["nixpkgs", "git-hooks", "gitignore", "flake-compat"]) {
   const node = lock.nodes[name];
