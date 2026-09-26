@@ -20,9 +20,14 @@ if (rootInputs?.nixpkgs !== "nixpkgs" || rootInputs?.["git-hooks"] !== "git-hook
 }
 for (const name of ["nixpkgs", "git-hooks", "gitignore", "flake-compat"]) {
   const node = lock.nodes[name];
-  if (!node?.locked?.rev || !node.locked.narHash) {
-    throw new Error(`devenv.lock input ${name} is not fully resolved`);
+  if (!node?.locked?.rev) {
+    throw new Error(`devenv.lock input ${name} has no pinned revision`);
   }
+}
+// devenv v1.8.1's git-hooks integration is compatible with this revision.
+// The project lock format does not require a NAR hash for GitHub inputs.
+if (lock.nodes["git-hooks"].locked.rev !== "fa466640195d38ec97cf0493d6d6882bc4d14969") {
+  throw new Error("devenv.lock git-hooks input is incompatible with devenv v1.8.1");
 }
 if (lock.nodes.nixpkgs.original?.repo !== "devenv-nixpkgs" ||
     lock.nodes.nixpkgs.original?.ref !== "rolling") {

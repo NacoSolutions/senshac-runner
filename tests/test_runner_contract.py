@@ -24,9 +24,11 @@ class RunnerContractTests(unittest.TestCase):
         self.assertIn('runner_uid="$(id -u)"', VERIFY_NIX_BASE)
         self.assertIn('runner_gid="$(id -g)"', VERIFY_NIX_BASE)
         self.assertIn("prepare_verification_workspace()", VERIFY_NIX_BASE)
-        self.assertIn("--exclude='./.devenv'", VERIFY_NIX_BASE)
-        self.assertIn("--exclude='./.devenv.flake.nix'", VERIFY_NIX_BASE)
+        self.assertIn('git -C "$repo" archive --format=tar HEAD', VERIFY_NIX_BASE)
+        self.assertNotIn("--exclude='./.devenv'", VERIFY_NIX_BASE)
+        self.assertNotIn("--exclude='./.devenv.flake.nix'", VERIFY_NIX_BASE)
         self.assertIn('trap cleanup EXIT', VERIFY_NIX_BASE)
+        self.assertIn('"$runtime" run --rm --pull=never --user 0:0', VERIFY_NIX_BASE)
         self.assertIn('rm -rf -- "$verification_workspace"', VERIFY_NIX_BASE)
         self.assertLess(VERIFY_NIX_BASE.index("prepare_verification_workspace\n"),
                         VERIFY_NIX_BASE.index("run_image()"))
@@ -36,6 +38,11 @@ class RunnerContractTests(unittest.TestCase):
         self.assertEqual(VERIFY_NIX_BASE.count('-e TMPDIR=/workspace/.tmp'), 2)
         self.assertNotIn('--volume "$repo:/workspace:', VERIFY_NIX_BASE)
         self.assertNotIn("--tmpfs /workspace/.devenv", VERIFY_NIX_BASE)
+
+    def test_devenv_lock_matches_pinned_devenv_release(self):
+        self.assertIn('devenv v1.8.1', (ROOT / "scripts/check-devenv-lock").read_text())
+        self.assertIn('fa466640195d38ec97cf0493d6d6882bc4d14969',
+                      (ROOT / "devenv.lock").read_text())
 
     def test_smoke_propagates_failures(self):
         with tempfile.TemporaryDirectory() as directory:

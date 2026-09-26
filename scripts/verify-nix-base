@@ -10,7 +10,19 @@ repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # workspace remains writable for the complete devenv evaluation.
 verification_workspace="$(mktemp -d "${TMPDIR:-/tmp}/senshac-verify.XXXXXX")"
 cleanup() {
-  rm -rf -- "$verification_workspace"
+  # Nix's chroot builder can create root-owned/read-only paths below HOME even
+  # when the container itself runs as the host user. Let the image's root
+  # account remove those paths before the host-side cleanup attempt.
+  if [[ -d "$verification_workspace" ]]; then
+    "$runtime" run --rm --pull=never --user 0:0 \
+      --entrypoint /usr/bin/env \
+      --volume "$verification_workspace:/workspace:rw" \
+      "$image" rm -rf -- /workspace/.home /workspace/.tmp 2>/dev/null || true
+  fi
+  rm -rf -- "$verification_workspace" || {
+    chmod -R u+rwx "$verification_workspace" 2>/dev/null || true
+    rm -rf -- "$verification_workspace"
+  }
 }
 trap cleanup EXIT
 verification_home="$verification_workspace/.home"
@@ -22,10 +34,10 @@ runner_gid="$(id -g)"
 mkdir -m 700 -- "$verification_home" "$verification_tmp"
 
 prepare_verification_workspace() {
-  tar -C "$repo" \
-    --exclude='./.devenv' \
-    --exclude='./.devenv.flake.nix' \
-    -cf - . | tar -C "$verification_workspace" -xf -
+  # Archive HEAD rather than the working tree: verification consumes exactly
+  # the committed manifest and lock and cannot copy local mutations into CI.
+  git -C "$repo" archive --format=tar HEAD | \
+    tar -C "$verification_workspace" -xf -
 }
 prepare_verification_workspace
 
