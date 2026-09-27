@@ -10,6 +10,7 @@ on:
       - "scripts/smoke-ci-runner"
       - "scripts/verify-ci-runner"
       - "scripts/verify-nix-base"
+      - "scripts/resolve-ci-runner-rollback-digest"
       - "scripts/check-oci-flake"
       - "flake.nix"
   workflow_dispatch:
@@ -72,13 +73,11 @@ jobs:
 
       - name: Record current rollback digest
         id: rollback
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          image="${REGISTRY}/${IMAGE_NAME}"
-          if docker pull "${image}:latest"; then
-            digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${image}:latest")"
-          else
-            digest="none (first publication)"
-          fi
+          image="${REGISTRY}/${IMAGE_NAME}:latest"
+          digest="$(scripts/resolve-ci-runner-rollback-digest "$image")"
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
       - name: Push immutable image

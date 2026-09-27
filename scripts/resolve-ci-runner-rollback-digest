@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+image="${1:?Usage: resolve-ci-runner-rollback-digest IMAGE:latest}"
+registry="${REGISTRY:-ghcr.io}"
+image_name="${IMAGE_NAME:-nacosolutions/senshac-runner}"
+repository="${registry}/${image_name}"
+
+if digest="$(docker buildx imagetools inspect --format '{{.Manifest.digest}}' "$image" 2>/dev/null)"; then
+  if [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+    printf '%s@%s\n' "$repository" "$digest"
+    exit 0
+  fi
+  printf 'Buildx returned an invalid manifest digest for %s: %s\n' "$image" "$digest" >&2
+  exit 1
+fi
+
+if [[ -z "${GITHUB_ACTOR:-}" || -z "${GH_TOKEN:-}" ]]; then
+  echo 'Cannot confirm first publication without authenticated GHCR credentials' >&2
+  exit 1
+fi
+
+response_file="$(mktemp)"
+trap 'rm -f "$response_file"' EXIT
+if ! status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+  --user "${GITHUB_ACTOR}:${GH_TOKEN}" \
+  --header 'Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.oci.image.index.v1+json' \
+  "https://${registry}/v2/${image_name}/manifests/latest")"; then
+  echo 'GHCR manifest API request failed while resolving the rollback digest' >&2
+  exit 1
+fi
+
+if [[ "$status" == 404 ]] && jq -e 'any(.errors[]?; .code == "MANIFEST_UNKNOWN")' "$response_file" >/dev/null; then
+  printf 'none (first publication)\n'
+  exit 0
+fi
+
+printf 'Cannot confirm first publication: authenticated GHCR manifest API returned HTTP %s\n' "$status" >&2
+cat "$response_file" >&2
+exit 1
