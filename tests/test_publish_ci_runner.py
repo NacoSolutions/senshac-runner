@@ -23,16 +23,24 @@ exit "$MOCK_INSPECT_STATUS"
 ''')
         self._command("curl", '''#!/usr/bin/env bash
 output=''
+printf '%s\\n' '--- call ---' >> "$CURL_LOG"
 while (($#)); do
   case "$1" in
     --output) output="$2"; shift 2 ;;
-    --user) printf '%s\\n' "$2" > "$CURL_LOG"; shift 2 ;;
+    --user) printf 'user=%s\\n' "$2" >> "$CURL_LOG"; shift 2 ;;
+    --header) printf 'header=%s\\n' "$2" >> "$CURL_LOG"; shift 2 ;;
+    --data-urlencode) printf 'data=%s\\n' "$2" >> "$CURL_LOG"; shift 2 ;;
     --write-out) shift 2 ;;
-    --header) shift 2 ;;
+    --get) shift ;;
     *) url="$1"; shift ;;
   esac
 done
-printf '%s' "$url" >> "$CURL_LOG"
+printf 'url=%s\\n' "$url" >> "$CURL_LOG"
+if [[ "$url" == */token ]]; then
+  printf '%s' "$MOCK_TOKEN_BODY" > "$output"
+  printf '%s' "$MOCK_TOKEN_HTTP_STATUS"
+  exit "$MOCK_TOKEN_CURL_STATUS"
+fi
 printf '%s' "$MOCK_BODY" > "$output"
 printf '%s' "$MOCK_HTTP_STATUS"
 exit "$MOCK_CURL_STATUS"
@@ -51,6 +59,9 @@ exit "$MOCK_CURL_STATUS"
             "CURL_LOG": str(self.curl_log),
             "MOCK_DIGEST": "sha256:" + "a" * 64,
             "MOCK_INSPECT_STATUS": "0",
+            "MOCK_TOKEN_HTTP_STATUS": "200",
+            "MOCK_TOKEN_CURL_STATUS": "0",
+            "MOCK_TOKEN_BODY": '{"token":"registry-token"}',
             "MOCK_HTTP_STATUS": "200",
             "MOCK_CURL_STATUS": "0",
             "MOCK_BODY": '{"schemaVersion":2}',
@@ -94,8 +105,14 @@ exit "$MOCK_CURL_STATUS"
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "none (first publication)")
         curl_log = self.curl_log.read_text()
-        self.assertIn("ci-bot:test-token", curl_log)
-        self.assertIn("https://ghcr.io/v2/nacosolutions/senshac-runner/manifests/latest", curl_log)
+        token_call, manifest_call = curl_log.split("--- call ---")[1:]
+        self.assertIn("user=ci-bot:test-token", token_call)
+        self.assertIn("https://ghcr.io/token", token_call)
+        self.assertIn("data=service=ghcr.io", token_call)
+        self.assertIn("data=scope=repository:nacosolutions/senshac-runner:pull", token_call)
+        self.assertNotIn("user=", manifest_call)
+        self.assertIn("header=Authorization: Bearer registry-token", manifest_call)
+        self.assertIn("https://ghcr.io/v2/nacosolutions/senshac-runner/manifests/latest", manifest_call)
 
     def test_missing_registry_credentials_fail_closed(self):
         result = self.resolve(MOCK_INSPECT_STATUS="1", GH_TOKEN="")
@@ -121,6 +138,27 @@ exit "$MOCK_CURL_STATUS"
                 )
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn("none (first publication)", result.stdout)
+
+    def test_token_exchange_failures_stop_before_manifest_request(self):
+        cases = (
+            ("401", '{"errors":[{"code":"UNAUTHORIZED"}]}', "0"),
+            ("500", "internal error", "0"),
+            ("200", "not-json", "0"),
+            ("200", '{"token":""}', "0"),
+            ("000", "", "7"),
+        )
+        for status, body, curl_status in cases:
+            with self.subTest(status=status, body=body, curl_status=curl_status):
+                self.curl_log.unlink(missing_ok=True)
+                result = self.resolve(
+                    MOCK_INSPECT_STATUS="1",
+                    MOCK_TOKEN_HTTP_STATUS=status,
+                    MOCK_TOKEN_BODY=body,
+                    MOCK_TOKEN_CURL_STATUS=curl_status,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("bearer token", result.stderr)
+                self.assertEqual(self.curl_log.read_text().count("--- call ---"), 1)
 
     def test_workflow_removes_only_rollback_pull(self):
         rollback = WORKFLOW.split("      - name: Record current rollback digest\n", 1)[1].split(
