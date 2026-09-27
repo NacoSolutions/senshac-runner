@@ -12,6 +12,7 @@ on:
       - 'flake.nix'
       - 'AGENTS.md'
       - 'docs/**'
+      - '.seeds/**'
   workflow_dispatch:
 
 concurrency:
