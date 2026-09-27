@@ -20,21 +20,38 @@ if [[ -z "${GITHUB_ACTOR:-}" || -z "${GH_TOKEN:-}" ]]; then
   exit 1
 fi
 
-response_file="$(mktemp)"
-trap 'rm -f "$response_file"' EXIT
-if ! status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+token_response_file="$(mktemp)"
+manifest_response_file="$(mktemp)"
+trap 'rm -f "$token_response_file" "$manifest_response_file"' EXIT
+if ! token_status="$(curl --silent --show-error --output "$token_response_file" --write-out '%{http_code}' \
   --user "${GITHUB_ACTOR}:${GH_TOKEN}" \
+  --get \
+  --data-urlencode 'service=ghcr.io' \
+  --data-urlencode "scope=repository:${image_name}:pull" \
+  "https://${registry}/token")"; then
+  echo 'GHCR bearer token request failed while resolving the rollback digest' >&2
+  exit 1
+fi
+
+if [[ "$token_status" != 200 ]] || ! registry_token="$(jq -er '(.token // .access_token) | strings | select(length > 0)' "$token_response_file" 2>/dev/null)"; then
+  printf 'Cannot obtain GHCR bearer token: token endpoint returned HTTP %s\n' "$token_status" >&2
+  cat "$token_response_file" >&2
+  exit 1
+fi
+
+if ! status="$(curl --silent --show-error --output "$manifest_response_file" --write-out '%{http_code}' \
+  --header "Authorization: Bearer ${registry_token}" \
   --header 'Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.oci.image.index.v1+json' \
   "https://${registry}/v2/${image_name}/manifests/latest")"; then
   echo 'GHCR manifest API request failed while resolving the rollback digest' >&2
   exit 1
 fi
 
-if [[ "$status" == 404 ]] && jq -e 'any(.errors[]?; .code == "MANIFEST_UNKNOWN")' "$response_file" >/dev/null; then
+if [[ "$status" == 404 ]] && jq -e 'any(.errors[]?; .code == "MANIFEST_UNKNOWN")' "$manifest_response_file" >/dev/null; then
   printf 'none (first publication)\n'
   exit 0
 fi
 
 printf 'Cannot confirm first publication: authenticated GHCR manifest API returned HTTP %s\n' "$status" >&2
-cat "$response_file" >&2
+cat "$manifest_response_file" >&2
 exit 1
