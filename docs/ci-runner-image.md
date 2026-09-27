@@ -21,6 +21,11 @@ Git, GitHub CLI, GNU tar, grep, gzip, jq, Node.js 22, and unzip. The image
 provides a non-root `runner` account (UID/GID 1000), `/workspace` as its working
 directory, and writable `/home/runner`, `/workspace`, and `/tmp` (mode `1777`).
 It also supplies `/usr/bin/env` and `/usr/bin/bash` for mounted CI scripts.
+The image exposes the Nix glibc loader at `/lib64/ld-linux-x86-64.so.2` and
+sets `LD_LIBRARY_PATH` to that glibc closure so native Linux executables
+installed by consumer dependencies (for example Cloudflare's `workerd`) can
+run in this distroless filesystem. The base verifier compiles and runs a
+system-interpreter probe to guard this ABI contract.
 
 ## Local build and smoke verification
 

@@ -23,10 +23,11 @@
             tag = "modular";
             contents = [ runtime pkgs.cacert ];
             extraCommands = ''
-              mkdir -p ./usr/bin ./etc ./home/runner ./tmp ./workspace
+              mkdir -p ./usr/bin ./lib64 ./etc ./home/runner ./tmp ./workspace
               ln -s ${runtime}/bin ./bin
               ln -s ${pkgs.coreutils}/bin/env ./usr/bin/env
               ln -s ${runtime}/bin/bash ./usr/bin/bash
+              ln -s ${pkgs.glibc}/lib/ld-linux-x86-64.so.2 ./lib64/ld-linux-x86-64.so.2
               printf '%s\n' \
                 'root:x:0:0:root:/root:/bin/bash' \
                 'runner:x:1000:1000:Senshac Runner:/home/runner:/bin/bash' \
@@ -50,6 +51,7 @@
                 "PATH=/bin:/usr/bin:${runtime}/bin"
                 "HOME=/home/runner"
                 "TMPDIR=/tmp"
+                "LD_LIBRARY_PATH=${pkgs.glibc}/lib"
                 "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
                 "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               ];
@@ -74,6 +76,7 @@
               'runtime_user=runner:1000:1000' \
               'writable_paths=/home/runner /tmp /workspace' \
               'runtime_contract=direct-packaged-runtime' \
+              'glibc_abi_loader=/lib64/ld-linux-x86-64.so.2' \
               'image_builder=dockerTools.buildLayeredImage' \
               'base_image=none' > "$out/metadata"
           '';
