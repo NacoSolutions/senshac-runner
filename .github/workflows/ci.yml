@@ -3,7 +3,8 @@ name: CI
 on:
   pull_request:
     paths:
-      - '.flox/env/**'
+      - 'devenv.nix'
+      - 'devenv.lock'
       - '.github/workflows/**'
       - 'scripts/**'
       - 'tests/**'
@@ -25,6 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.13'
       - name: Validate runner contract
         run: |
           for script in scripts/*; do bash -n "$script"; done
@@ -37,7 +41,7 @@ jobs:
           test -x scripts/act-ci
           test -x scripts/build-warren-agent
           test -s Containerfile.warren-agent
-      - name: Validate Flox manifest and regression contracts
+      - name: Validate devenv configuration and regression contracts
         run: |
-          scripts/check-flox-lock
+          scripts/check-devenv-lock
           python3 -m unittest discover -s tests -v

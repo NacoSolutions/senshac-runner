@@ -1,8 +1,10 @@
 # Senshac Runner
 
-This is the focused CI and local-runner repository. It owns Flox
-containerization, rootless Podman/Act execution, and runner image publishing.
-It does not own the Astro application, Tina content, or media processing.
+This is the focused CI and local-runner repository. It owns the rootless,
+distroless OCI runner image, which packages CI tools directly, plus Podman/Act
+execution and image publishing. The separate devenv environment supports
+developer shells and tooling. This repository does not own the Astro
+application, Tina content, or media processing.
 
 The live web repository remains the checkout supplied to the runner. Validate
 runner changes against a clean web checkout before changing image tags or
@@ -29,15 +31,15 @@ Use these focused role skills for their corresponding work:
 - [Git Workflow](.agents/skills/git-workflow/SKILL.md) for scoped diffs, commits,
   and delivery checks.
 - [Managing Environments](.agents/skills/managing-environments/SKILL.md) for
-  Flox, rootless Podman, Act, and producer/consumer validation.
-- [Dependency Hygiene](.agents/skills/dependency-hygiene/SKILL.md) for Flox
+  devenv, rootless Podman, Act, and producer/consumer validation.
+- [Dependency Hygiene](.agents/skills/dependency-hygiene/SKILL.md) for devenv
   manifest, lock, and runner dependency checks.
 - [Verification Before Completion](.agents/skills/verification-before-completion/SKILL.md)
   for bounded documentation/configuration validation and final acceptance.
 
 ## Seeds and Mulch
 
-This repository uses the pinned Flox tools `sd` (Seeds) and `ml` (Mulch).
+This repository uses the pinned devenv tools `sd` (Seeds) and `ml` (Mulch).
 
 - Run `sd prime` at session start or after context compaction; use `sd ready`
   to find unblocked work. Track work with Seeds rather than ad hoc task files.
@@ -45,8 +47,8 @@ This repository uses the pinned Flox tools `sd` (Seeds) and `ml` (Mulch).
   finishing a task, use `ml record` for durable conventions, decisions, or
   failures that future agents should know.
 - Keep `.seeds/`, `.mulch/`, and their merge-union entries in `.gitattributes`
-  under version control. Run the commands through the project Flox environment
-  (`fx sd ...` / `fx ml ...`) when the host does not provide them directly.
+  under version control. Run the commands through the project devenv environment
+  (`devenv sd ...` / `devenv ml ...`) when the host does not provide them directly.
 - On a fresh checkout, bootstrap with `sd init` and `ml init`, then create or
   claim work with `sd create`/`sd update`; validate both stores with `sd doctor`
   and `ml validate` before committing tracker changes.

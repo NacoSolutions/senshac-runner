@@ -1,0 +1,4 @@
+# Inputs are pinned in devenv.lock by `devenv update`.
+inputs:
+  nixpkgs:
+    url: github:NixOS/nixpkgs/nixpkgs-unstable

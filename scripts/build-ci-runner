@@ -15,15 +15,8 @@ require() {
 require nix
 require "$runtime"
 
-# Flox remains the package contract and is checked before Nix assembles the
-# immutable OCI closure. The image itself is deliberately produced only by
-# dockerTools; it never invokes the Flox container builder or apt-get.
-if [[ "${SKIP_FLOX_LOCK_CHECK:-0}" != 1 ]]; then
-  "$repo/scripts/check-flox-lock"
-fi
-
-# Use the official cache declared by the pinned Flox release rather than
-# compiling the Rust-based Flox closure on the image builder.
+# Nix assembles the complete runtime tool closure directly. The published
+# image has no project activation or developer-environment dependency.
 nix_cmd=(nix --accept-flake-config --extra-experimental-features 'nix-command flakes')
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT

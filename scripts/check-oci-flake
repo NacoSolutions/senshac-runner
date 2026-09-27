@@ -9,9 +9,8 @@ if ! command -v nix >/dev/null 2>&1; then
   exit 2
 fi
 
-# Accept the pinned flake's official cache declaration. Without this flag,
-# generic Nix installations ignore cache.flox.dev and compile Flox's Rust
-# closure locally.
+# Accept the flake configuration so generic Nix installations honor its
+# declared inputs and do not write lock updates during validation.
 nix_cmd=(nix --accept-flake-config --extra-experimental-features 'nix-command flakes')
 "${nix_cmd[@]}" flake check --no-write-lock-file
 
@@ -26,7 +25,15 @@ assert_output() {
   fi
 }
 
-assert_output senshac-runner-base eval --raw .#packages.x86_64-linux.baseRuntime.name
+assert_output senshac-runner-runtime eval --raw .#packages.x86_64-linux.runtime.name
+for output in runtime ociImage; do
+  closure="$("${nix_cmd[@]}" path-info --recursive ".#$output" --no-write-lock-file)"
+  if grep -Eiq '/nix/store/[^[:space:]]*(devenv|flox)' <<< "$closure"; then
+    printf 'Developer environment or Flox package leaked into .#%s closure\n' "$output" >&2
+    grep -Ei '/nix/store/[^[:space:]]*(devenv|flox)' <<< "$closure" >&2
+    exit 1
+  fi
+done
 # buildLayeredImage emits a Docker-compatible archive named after the image.
 # Keep this exact assertion so the output contract cannot silently drift.
 assert_output senshac-runner-oci.tar.gz eval --raw .#packages.x86_64-linux.ociImage.name
@@ -58,10 +65,11 @@ assert_metadata() {
 
 assert_metadata image 'senshac-runner-oci:modular'
 assert_metadata base_image none
-assert_metadata base_tools 'bash cacert coreutils flox'
-assert_metadata activation 'mounted-project-manifest-lock'
-assert_metadata project_tools 'committed-flox-manifest-lock'
+assert_metadata runtime_tools 'bash bun cacert chromium coreutils curl gcc git gh gnutar gnugrep gzip jq nodejs unzip'
+assert_metadata runtime_user 'runner:1000:1000'
+assert_metadata writable_paths '/home/runner /tmp /workspace'
+assert_metadata runtime_contract 'direct-packaged-runtime'
 assert_metadata image_builder 'dockerTools.buildLayeredImage'
-[[ -n "${metadata[base_runtime]-}" ]] || { echo 'base_runtime metadata is empty' >&2; exit 1; }
+[[ -n "${metadata[runtime]-}" ]] || { echo 'runtime metadata is empty' >&2; exit 1; }
 [[ -n "${metadata[image_tarball]-}" ]] || { echo 'image_tarball metadata is empty' >&2; exit 1; }
 printf '%s\n' 'Nix flake, OCI build, and closure metadata validation passed'

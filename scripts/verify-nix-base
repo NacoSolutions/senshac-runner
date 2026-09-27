@@ -5,33 +5,61 @@ runtime="${CONTAINER_RUNTIME:-docker}"
 image="${1:?Usage: scripts/verify-nix-base IMAGE}"
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Every non-base tool comes from the mounted project's committed Flox lock.
-run_image() {
-  "$runtime" run --rm --pull=never \
-    --entrypoint /usr/bin/env \
-    --volume "$repo:/workspace:ro" \
-    -e FLOX_PROJECT=/workspace \
-    "$image" "$@"
+verification_workspace="$(mktemp -d "${TMPDIR:-/tmp}/senshac-verify.XXXXXX")"
+cleanup() {
+  rm -rf -- "$verification_workspace"
 }
+trap cleanup EXIT
 
-# Fail with the missing runtime path rather than an opaque activation error.
-# The dockerTools image has no base distribution. Flox activation uses the
-# conventional absolute shell path as well as env-based shebangs, so verify
-# both runtime paths before attempting activation.
-printf 'Checking image runtime contract: /usr/bin/env and /usr/bin/bash\n'
-run_image bash -c 'test -x /usr/bin/env && test -x /usr/bin/bash && command -v bash'
+# Verify the committed checkout in a writable, isolated bind mount. The image
+# remains the direct Nix runtime; no activation files or lock are generated.
+archive="$(mktemp "${TMPDIR:-/tmp}/senshac-source.XXXXXX.tar")"
+git -C "$repo" archive --format=tar HEAD > "$archive"
+tar -C "$verification_workspace" -xf "$archive"
+rm -f -- "$archive"
 
-run_flox() {
-  "$runtime" run --rm --pull=never \
-    --volume "$repo:/workspace:ro" \
-    -e FLOX_PROJECT=/workspace \
-    "$image" flox activate -- "$@"
-}
+runner_uid="$(id -u)"
+runner_gid="$(id -g)"
+container_args=(run --rm --pull=never)
+if [[ "$(basename "$runtime")" == podman ]]; then
+  # Require a genuinely rootless host runtime and map the image user onto the
+  # invoking host user for the writable workspace bind mount.
+  [[ "$runner_uid" -ne 0 ]] || { echo 'Rootless Podman verification requires a non-root host user' >&2; exit 2; }
+  podman_rootless="$("$runtime" info --format '{{.Host.Security.Rootless}}')"
+  [[ "$podman_rootless" == true ]] || { echo 'Podman is not running rootless' >&2; exit 2; }
+  container_args+=(--userns=keep-id:uid=1000,gid=1000 -e EXPECT_RUNNER_USER=1)
+else
+  # Docker's rootful daemon does not need a user namespace mapping.
+  container_args+=(--user "$runner_uid:$runner_gid")
+  mkdir -m 700 -- "$verification_workspace/.home"
+  container_args+=(--volume "$verification_workspace/.home:/home/runner:rw")
+fi
+container_args+=(
+  --volume "$verification_workspace:/workspace:rw"
+  --workdir /workspace
+  -e HOME=/home/runner
+  -e TMPDIR=/tmp
+)
 
-printf 'Checking mounted Flox environment: %s\n' "$image"
-run_flox command -v bun
-run_flox command -v chromium
-run_flox chromium --headless --no-sandbox --disable-gpu \
-  --dump-dom 'data:text/html,<title>senshac-runner</title>' \
-  2>/dev/null | grep -q '<title>senshac-runner</title>'
-printf '%s\n' NIX_FLOX_MOUNTED_PROJECT_OK
+printf 'Checking direct runtime tools and non-root filesystem contract: %s\n' "$image"
+"$runtime" "${container_args[@]}" "$image" bash -eu -c '
+  uid="$(id -u)"
+  test "$uid" -gt 0
+  test "$HOME" = /home/runner
+  test -w "$HOME"
+  test -d /tmp && test -w /tmp
+  test "$(stat -c %a /tmp)" = 1777
+  test -w /workspace
+  if [ "${EXPECT_RUNNER_USER:-0}" = 1 ]; then
+    test "$uid" = 1000
+    test "$(id -un)" = runner
+  fi
+  for tool in bash tar gzip grep git gh bun node gcc unzip chromium jq curl; do
+    command -v "$tool"
+  done
+  home_probe="$(mktemp "$HOME/.oci-home.XXXXXX")"
+  tmp_probe="$(mktemp /tmp/.oci-tmp.XXXXXX)"
+  workspace_probe="$(mktemp /workspace/.oci-workspace.XXXXXX)"
+  rm -f -- "$home_probe" "$tmp_probe" "$workspace_probe"
+  printf "runtime uid=%s home=%s workspace=%s\\n" "$uid" "$HOME" "$PWD"
+'

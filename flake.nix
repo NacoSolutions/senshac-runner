@@ -1,115 +1,81 @@
 {
-  description = "Senshac Runner's Flox activation OCI image";
+  description = "Senshac rootless OCI runner image";
 
-  # Flox publishes its CLI and patched Nix closure in this cache. Keep the
-  # cache declaration in the flake so generic Nix installations use the same
-  # official substitution model as Flox's installer.
-  nixConfig = {
-    extra-substituters = [ "https://cache.flox.dev" ];
-    extra-trusted-public-keys = [
-      "flox-cache-public-1:7F4OyH7ZCnFhcze3fJdfyXYLQw/aV7GEed86nQ7IsOs="
-    ];
-  };
-
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
-  # Flox is not distributed by nixpkgs. Pin an upstream release rather than a
-  # moving branch or source revision; its published closure is substituted
-  # from cache.flox.dev instead of compiling the Rust CLI locally.
-  inputs.flox.url = "github:flox/flox/v1.9.1";
-
-  outputs = { self, nixpkgs, flox }:
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  outputs = { self, nixpkgs, ... }:
     let
       systems = [ "x86_64-linux" ];
       forEachSystem = f: nixpkgs.lib.genAttrs systems (system: f (import nixpkgs { inherit system; }));
     in {
       packages = forEachSystem (pkgs:
         let
-          # The committed Flox manifest/lock owns every project tool. This is
-          # only the immutable bootstrap needed to run activation.
-          baseRuntime = pkgs.buildEnv {
-            name = "senshac-runner-base";
-            paths = with pkgs; [
-              bashInteractive
-              cacert
-              coreutils
-              # The CLI/runtime comes from Flox's pinned upstream flake.
-              flox.packages.${pkgs.system}.flox
-            ];
+          runtimePackages = with pkgs; [
+            bashInteractive cacert coreutils curl gnutar gnugrep gzip git gh jq
+            bun chromium gcc nodejs_22 unzip
+          ];
+          runtime = pkgs.buildEnv {
+            name = "senshac-runner-runtime";
+            paths = runtimePackages;
             pathsToLink = [ "/bin" "/lib" "/share" ];
           };
-
-          activationWrapper = pkgs.writeShellScriptBin "senshac-activate" ''
-            set -eu
-            project="''${FLOX_PROJECT:-$PWD}"
-            lock="$project/.flox/env/manifest.lock"
-            if [ ! -f "$lock" ]; then
-              echo "Flox activation requires a mounted project lock: $lock" >&2
-              exit 2
-            fi
-            export FLOX_PROJECT="$project"
-            # Keep an explicit command form available for mounted-project
-            # verification while making the image entrypoint an activation
-            # wrapper for ordinary commands.
-            if [ "''${1:-}" = flox ] && [ "''${2:-}" = activate ]; then
-              exec "$@"
-            fi
-            exec flox activate -d "$project" -- "$@"
-          '';
-
           ociImage = pkgs.dockerTools.buildLayeredImage {
             name = "senshac-runner-oci";
             tag = "modular";
-            contents = [ baseRuntime activationWrapper pkgs.cacert ];
-            # Flox activation scripts use conventional env and absolute shell
-            # interpreters. Nix store paths alone do not provide the standard
-            # filesystem locations; create them explicitly instead of relying
-            # on a base image.
+            contents = [ runtime pkgs.cacert ];
             extraCommands = ''
-              # Flox activation uses both env-based and absolute POSIX shell
-              # interpreters. dockerTools has no distribution filesystem, so
-              # provide the conventional paths explicitly instead of relying
-              # on /bin links or the container PATH.
-              mkdir -p ./usr/bin
+              mkdir -p ./usr/bin ./etc ./home/runner ./tmp ./workspace
+              ln -s ${runtime}/bin ./bin
               ln -s ${pkgs.coreutils}/bin/env ./usr/bin/env
-              ln -s ${pkgs.bashInteractive}/bin/bash ./usr/bin/bash
+              ln -s ${runtime}/bin/bash ./usr/bin/bash
+              printf '%s\n' \
+                'root:x:0:0:root:/root:/bin/bash' \
+                'runner:x:1000:1000:Senshac Runner:/home/runner:/bin/bash' \
+                > ./etc/passwd
+              printf '%s\n' \
+                'root:x:0:' \
+                'runner:x:1000:' \
+                > ./etc/group
+              printf '%s\n' 'passwd: files' 'group: files' 'hosts: files dns' > ./etc/nsswitch.conf
+              chmod 0755 ./home ./home/runner ./workspace
+              chmod 1777 ./tmp
+            '';
+            fakeRootCommands = ''
+              chown 1000:1000 ./home/runner ./workspace
+              chown 0:0 ./tmp
             '';
             config = {
-              Entrypoint = [ "${activationWrapper}/bin/senshac-activate" ];
-              Cmd = [ "${pkgs.bashInteractive}/bin/bash" ];
+              User = "1000:1000";
+              Cmd = [ "/bin/bash" ];
               Env = [
-                "PATH=/usr/local/bin:/usr/bin:/bin:${activationWrapper}/bin:${baseRuntime}/bin"
+                "PATH=/bin:/usr/bin:${runtime}/bin"
+                "HOME=/home/runner"
+                "TMPDIR=/tmp"
                 "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
                 "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-                "HOME=/tmp"
-                "FLOX_PROJECT=/workspace"
               ];
               WorkingDir = "/workspace";
             };
           };
         in {
-          inherit baseRuntime ociImage;
+          inherit runtime ociImage;
           default = ociImage;
         });
-
       checks = forEachSystem (pkgs:
-        let
-          baseRuntime = self.packages.${pkgs.system}.baseRuntime;
-          ociImage = self.packages.${pkgs.system}.ociImage;
+        let runtime = self.packages.${pkgs.system}.runtime;
+            ociImage = self.packages.${pkgs.system}.ociImage;
         in {
-          oci-closure-metadata = pkgs.runCommand "senshac-oci-closure-metadata" {
-            nativeBuildInputs = [ pkgs.coreutils ];
-          } ''
+          oci-closure-metadata = pkgs.runCommand "senshac-oci-closure-metadata" {} ''
             mkdir -p "$out"
             printf '%s\n' \
               'image=senshac-runner-oci:modular' \
-              'base_runtime=${baseRuntime}' \
+              'runtime=${runtime}' \
               'image_tarball=${ociImage}' \
-              'base_tools=bash cacert coreutils flox' \
-              'activation=mounted-project-manifest-lock' \
-              'project_tools=committed-flox-manifest-lock' \
+              'runtime_tools=bash bun cacert chromium coreutils curl gcc git gh gnutar gnugrep gzip jq nodejs unzip' \
+              'runtime_user=runner:1000:1000' \
+              'writable_paths=/home/runner /tmp /workspace' \
+              'runtime_contract=direct-packaged-runtime' \
               'image_builder=dockerTools.buildLayeredImage' \
-              'base_image=none' \
-              > "$out/metadata"
+              'base_image=none' > "$out/metadata"
           '';
         });
     };

@@ -5,11 +5,8 @@ on:
     branches:
       - main
     paths:
-      - ".flox/env/manifest.toml"
-      - ".flox/env/manifest.lock"
       - ".github/workflows/publish-ci-runner.yml"
       - "scripts/build-ci-runner"
-      - "scripts/check-flox-lock"
       - "scripts/smoke-ci-runner"
       - "scripts/verify-ci-runner"
       - "scripts/verify-nix-base"
@@ -99,8 +96,9 @@ jobs:
           echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Re-pulling immutable image ${immutable}"
           docker image rm "${immutable}"
           docker pull "${immutable}"
-          echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Running activated-environment smoke test"
+          echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Running direct-runtime contract and smoke tests"
           CONTAINER_RUNTIME=docker scripts/verify-nix-base "${immutable}"
+          CONTAINER_RUNTIME=docker scripts/smoke-ci-runner "${immutable}"
           digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${immutable}")"
           case "$digest" in
             *@sha256:*) ;;

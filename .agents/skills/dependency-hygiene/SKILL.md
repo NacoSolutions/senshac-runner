@@ -1,18 +1,18 @@
 # Dependency Hygiene
 
-Keep Flox package declarations, resolved lock entries, and runner checks in
+Keep devenv package declarations, resolved lock entries, and runner checks in
 agreement.
 
 ## Commands
 
 ```bash
-scripts/check-flox-lock
+scripts/check-devenv-lock
 python3 -m unittest discover -s tests -v
 for script in scripts/*; do bash -n "$script"; done
 ```
 
-Update `.flox/env/manifest.toml` through the pinned Flox workflow, commit the
-matching `.flox/env/manifest.lock`, and run the checks above. Keep package
+Update `devenv.nix` through the pinned devenv workflow, commit the
+matching `devenv.lock`, and run the checks above. Keep package
 exposure covered by `scripts/verify-ci-runner` when the runner image changes.
 
 ## Acceptance checks

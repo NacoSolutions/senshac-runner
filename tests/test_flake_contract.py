@@ -1,74 +1,56 @@
 from pathlib import Path
 import unittest
 
-
 ROOT = Path(__file__).resolve().parents[1]
 FLAKE = (ROOT / "flake.nix").read_text()
-OCI_CHECK_SCRIPT = (ROOT / "scripts/check-oci-flake").read_text()
-VERIFY_SCRIPT = (ROOT / "scripts/verify-nix-base").read_text()
-VERIFY_WORKFLOW = (ROOT / ".github/workflows/verify-ci-runner.yml").read_text()
+CHECK = (ROOT / "scripts/check-oci-flake").read_text()
+VERIFY = (ROOT / "scripts/verify-nix-base").read_text()
+SMOKE = (ROOT / "scripts/smoke-ci-runner").read_text()
 
 
 class FlakeContractTests(unittest.TestCase):
-    def test_exports_one_docker_tools_image_and_minimal_base(self):
-        self.assertIn("baseRuntime = pkgs.buildEnv", FLAKE)
-        self.assertIn('inputs.flox.url = "github:flox/flox/v1.9.1";', FLAKE)
-        self.assertIn('extra-substituters = [ "https://cache.flox.dev" ];', FLAKE)
-        self.assertIn('flox-cache-public-1:7F4OyH7ZCnFhcze3fJdfyXYLQw/aV7GEed86nQ7IsOs=', FLAKE)
-        self.assertIn("flox.packages.${pkgs.system}.flox", FLAKE)
-        self.assertNotIn("pkgs.flox", FLAKE)
-        self.assertNotIn("coreutils flox ];", FLAKE)
-        self.assertIn("ociImage = pkgs.dockerTools.buildLayeredImage", FLAKE)
-        self.assertIn("inherit baseRuntime ociImage", FLAKE)
-        self.assertNotIn("ciTools", FLAKE)
-        for tool in ("bun", "chromium", "git", "gh", "nodejs", "gnutar"):
-            self.assertNotIn(f"{tool} ]", FLAKE)
-
-    def test_activation_requires_mounted_lock_and_runs_flox(self):
-        self.assertIn('lock="$project/.flox/env/manifest.lock"', FLAKE)
-        self.assertIn('exec flox activate -d "$project" -- "$@"', FLAKE)
-        self.assertIn("if [ \"''${1:-}\" = flox ] && [ \"''${2:-}\" = activate ]; then", FLAKE)
-        self.assertIn("FLOX_PROJECT=/workspace", FLAKE)
-        self.assertIn('PATH=/usr/local/bin:/usr/bin:/bin:', FLAKE)
-        self.assertIn("'activation=mounted-project-manifest-lock'", FLAKE)
-
-    def test_image_has_no_other_builder_or_base_image(self):
-        self.assertIn("contents = [ baseRuntime activationWrapper pkgs.cacert ];", FLAKE)
-        self.assertIn("extraCommands = ''", FLAKE)
-        self.assertIn("ln -s ${pkgs.coreutils}/bin/env ./usr/bin/env", FLAKE)
-        self.assertIn("ln -s ${pkgs.bashInteractive}/bin/bash ./usr/bin/bash", FLAKE)
-        self.assertIn("'image_builder=dockerTools.buildLayeredImage'", FLAKE)
-        self.assertIn("'base_image=none'", FLAKE)
-        self.assertNotIn("FROM ", FLAKE)
-        self.assertNotIn("docker build", FLAKE)
-        self.assertNotIn("flox containerize", FLAKE)
+    def test_direct_nix_runtime_has_required_tools_and_no_environment_activation(self):
+        self.assertIn("pkgs.dockerTools.buildLayeredImage", FLAKE)
+        self.assertIn('inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable"', FLAKE)
+        for package in ("bashInteractive", "cacert", "coreutils", "curl", "gnutar",
+                        "gnugrep", "gzip", "git", "gh", "jq", "bun", "chromium", "gcc",
+                        "nodejs_22", "unzip"):
+            self.assertIn(package, FLAKE)
+        self.assertNotIn("devenv", FLAKE.lower())
+        self.assertNotIn("flox", FLAKE.lower())
+        self.assertNotIn("activationWrapper", FLAKE)
         self.assertNotIn("apt-get", FLAKE)
+        self.assertNotIn("FROM ", FLAKE)
 
-    def test_oci_validation_builds_only_image(self):
-        flag = "nix --accept-flake-config --extra-experimental-features 'nix-command flakes'"
-        self.assertIn("nix_cmd=(" + flag + ")", OCI_CHECK_SCRIPT)
-        self.assertIn('"${nix_cmd[@]}" flake check', OCI_CHECK_SCRIPT)
-        self.assertIn('"${nix_cmd[@]}" build --no-write-lock-file --out-link "$oci_link" .#ociImage', OCI_CHECK_SCRIPT)
-        self.assertIn("assert_output senshac-runner-base eval --raw .#packages.x86_64-linux.baseRuntime.name", OCI_CHECK_SCRIPT)
-        self.assertNotIn(".#ciTools", OCI_CHECK_SCRIPT)
+    def test_image_has_non_root_identity_and_writable_runtime_paths(self):
+        self.assertIn('User = "1000:1000"', FLAKE)
+        self.assertIn("runner:x:1000:1000:Senshac Runner:/home/runner:/bin/bash", FLAKE)
+        self.assertIn("chown 1000:1000 ./home/runner ./workspace", FLAKE)
+        self.assertIn("chmod 1777 ./tmp", FLAKE)
+        for path in ("HOME=/home/runner", "TMPDIR=/tmp", "./workspace"):
+            self.assertIn(path, FLAKE)
+        for marker in ("runtime_tools", "runtime_user", "writable_paths", "direct-packaged-runtime"):
+            self.assertIn(marker, FLAKE)
+        self.assertIn("runtime_tools=bash bun cacert chromium coreutils curl gcc git gh gnutar gnugrep gzip jq nodejs unzip", FLAKE)
+        self.assertIn("assert_metadata runtime_tools 'bash bun cacert chromium coreutils curl gcc git gh gnutar gnugrep gzip jq nodejs unzip'", CHECK)
+        self.assertIn("assert_metadata runtime_user 'runner:1000:1000'", CHECK)
+        self.assertIn("for output in runtime ociImage", CHECK)
+        self.assertIn('path-info --recursive ".#$output"', CHECK)
 
-    def test_mounted_project_verification_is_realistic(self):
-        self.assertIn('--entrypoint /usr/bin/env', VERIFY_SCRIPT)
-        self.assertIn("test -x /usr/bin/env && test -x /usr/bin/bash", VERIFY_SCRIPT)
-        self.assertIn('run_flox command -v bun', VERIFY_SCRIPT)
-        self.assertIn('run_flox command -v chromium', VERIFY_SCRIPT)
-        self.assertIn('flox activate -- "$@"', VERIFY_SCRIPT)
-        self.assertIn('run_flox chromium --headless --no-sandbox', VERIFY_SCRIPT)
-        self.assertIn('--volume "$repo:/workspace:ro"', VERIFY_SCRIPT)
-        self.assertIn('"$image" flox activate -- "$@"', VERIFY_SCRIPT)
-
-    def test_runner_has_one_canonical_producer_path(self):
-        self.assertIn("scripts/check-oci-flake", VERIFY_WORKFLOW)
-        self.assertIn("needs: build-image", VERIFY_WORKFLOW)
-        for stale_path in ("build-minimal-flox", "verify-minimal-flox", ".flox/ci", "flox containerize"):
-            self.assertNotIn(stale_path, VERIFY_WORKFLOW)
-        self.assertNotIn("flox/install-flox-action", VERIFY_WORKFLOW)
-        self.assertNotIn("docker build", VERIFY_WORKFLOW)
+    def test_verification_exercises_rootless_runtime_and_write_permissions(self):
+        self.assertIn("--userns=keep-id:uid=1000,gid=1000", VERIFY)
+        self.assertIn("info --format '{{.Host.Security.Rootless}}'", VERIFY)
+        self.assertIn("-e EXPECT_RUNNER_USER=1", VERIFY)
+        self.assertIn('test "$(id -un)" = runner', VERIFY)
+        self.assertIn('test "$(stat -c %a /tmp)" = 1777', VERIFY)
+        self.assertIn('mktemp "$HOME/.oci-home.XXXXXX"', VERIFY)
+        self.assertIn('mktemp /tmp/.oci-tmp.XXXXXX', VERIFY)
+        self.assertIn('mktemp /workspace/.oci-workspace.XXXXXX', VERIFY)
+        self.assertIn('command -v "$tool"', VERIFY)
+        self.assertIn("for tool in bash tar gzip grep git gh bun node gcc unzip chromium jq curl; do", VERIFY)
+        self.assertIn("for tool in tar gzip grep git gh bun node gcc unzip chromium jq curl; do", (ROOT / "scripts/verify-ci-runner").read_text())
+        self.assertIn("--userns=keep-id:uid=1000,gid=1000", SMOKE)
+        self.assertIn('"$image" bash /runner-check/verify-ci-runner', SMOKE)
 
 
 if __name__ == "__main__":
