@@ -22,7 +22,8 @@ fi
 
 token_response_file="$(mktemp)"
 manifest_response_file="$(mktemp)"
-trap 'rm -f "$token_response_file" "$manifest_response_file"' EXIT
+manifest_headers_file="$(mktemp)"
+trap 'rm -f "$token_response_file" "$manifest_response_file" "$manifest_headers_file"' EXIT
 if ! token_status="$(curl --silent --show-error --output "$token_response_file" --write-out '%{http_code}' \
   --user "${GITHUB_ACTOR}:${GH_TOKEN}" \
   --get \
@@ -39,11 +40,23 @@ if [[ "$token_status" != 200 ]] || ! registry_token="$(jq -er '(.token // .acces
   exit 1
 fi
 
-if ! status="$(curl --silent --show-error --output "$manifest_response_file" --write-out '%{http_code}' \
+if ! status="$(curl --silent --show-error --dump-header "$manifest_headers_file" \
+  --output "$manifest_response_file" --write-out '%{http_code}' \
   --header "Authorization: Bearer ${registry_token}" \
   --header 'Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.oci.image.index.v1+json' \
   "https://${registry}/v2/${image_name}/manifests/latest")"; then
   echo 'GHCR manifest API request failed while resolving the rollback digest' >&2
+  exit 1
+fi
+
+if [[ "$status" == 200 ]]; then
+  digest="$(awk 'tolower($0) ~ /^docker-content-digest:/ { sub(/\r$/, ""); sub(/^[^:]*:[[:space:]]*/, ""); print; exit }' "$manifest_headers_file")"
+  if [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+    printf '%s@%s\n' "$repository" "$digest"
+    exit 0
+  fi
+  printf 'Cannot resolve manifest digest: authenticated GHCR manifest API returned an invalid or missing Docker-Content-Digest header\n' >&2
+  cat "$manifest_headers_file" >&2
   exit 1
 fi
 
