@@ -11,6 +11,10 @@ SMOKE = (ROOT / "scripts/smoke-ci-runner").read_text()
 class FlakeContractTests(unittest.TestCase):
     def test_direct_nix_runtime_has_required_tools_and_no_environment_activation(self):
         self.assertIn("pkgs.dockerTools.buildLayeredImage", FLAKE)
+        self.assertIn("pkgs.glibc}/lib/ld-linux-x86-64.so.2", FLAKE)
+        self.assertIn("LD_LIBRARY_PATH=${pkgs.glibc}/lib", FLAKE)
+        self.assertIn("glibc_abi_loader=/lib64/ld-linux-x86-64.so.2", FLAKE)
+        self.assertIn("assert_metadata glibc_abi_loader '/lib64/ld-linux-x86-64.so.2'", CHECK)
         self.assertIn('inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable"', FLAKE)
         for package in ("bashInteractive", "cacert", "coreutils", "curl", "gnutar",
                         "gnugrep", "gzip", "git", "gh", "jq", "bun", "chromium", "gcc",
@@ -36,6 +40,8 @@ class FlakeContractTests(unittest.TestCase):
         self.assertIn("assert_metadata runtime_user 'runner:1000:1000'", CHECK)
         self.assertIn("for output in runtime ociImage", CHECK)
         self.assertIn('path-info --recursive ".#$output"', CHECK)
+        self.assertIn("test -x /lib64/ld-linux-x86-64.so.2", VERIFY)
+        self.assertIn("-Wl,--dynamic-linker=/lib64/ld-linux-x86-64.so.2", VERIFY)
 
     def test_verification_exercises_rootless_runtime_and_write_permissions(self):
         self.assertIn("--userns=keep-id:uid=1000,gid=1000", VERIFY)

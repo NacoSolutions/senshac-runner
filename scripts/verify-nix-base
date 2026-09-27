@@ -57,6 +57,14 @@ printf 'Checking direct runtime tools and non-root filesystem contract: %s\n' "$
   for tool in bash tar gzip grep git gh bun node gcc unzip chromium jq curl; do
     command -v "$tool"
   done
+  test -x /lib64/ld-linux-x86-64.so.2
+  test -n "${LD_LIBRARY_PATH:-}"
+  abi_probe_dir="$(mktemp -d /tmp/.glibc-abi.XXXXXX)"
+  printf "int main(void) { return 0; }\n" > "$abi_probe_dir/probe.c"
+  gcc "$abi_probe_dir/probe.c" -o "$abi_probe_dir/probe" \
+    -Wl,--dynamic-linker=/lib64/ld-linux-x86-64.so.2
+  "$abi_probe_dir/probe"
+  rm -rf -- "$abi_probe_dir"
   home_probe="$(mktemp "$HOME/.oci-home.XXXXXX")"
   tmp_probe="$(mktemp /tmp/.oci-tmp.XXXXXX)"
   workspace_probe="$(mktemp /workspace/.oci-workspace.XXXXXX)"

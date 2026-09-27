@@ -18,6 +18,10 @@ UID/GID 1000, configures it as the default image user, and uses `/workspace`
 as its working directory. `/home/runner` and `/workspace` belong to that user;
 `/tmp` has mode `1777`. The image supplies `/usr/bin/env` and `/usr/bin/bash`
 for mounted CI scripts without adding a distribution layer.
+It also provides `/lib64/ld-linux-x86-64.so.2` and the matching glibc library
+path for dynamically linked Linux executables installed by consumer
+dependencies. The runtime verifier compiles and executes a probe using that
+system interpreter, covering dependencies such as Cloudflare's `workerd`.
 
 `pkgs.dockerTools` assembles the Nix closure into `senshac-runner-oci:modular`.
 Nix flake evaluation/build and metadata checks run with:
