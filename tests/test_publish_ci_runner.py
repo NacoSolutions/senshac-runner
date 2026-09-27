@@ -23,10 +23,12 @@ exit "$MOCK_INSPECT_STATUS"
 ''')
         self._command("curl", '''#!/usr/bin/env bash
 output=''
+headers=''
 printf '%s\\n' '--- call ---' >> "$CURL_LOG"
 while (($#)); do
   case "$1" in
     --output) output="$2"; shift 2 ;;
+    --dump-header) headers="$2"; shift 2 ;;
     --user) printf 'user=%s\\n' "$2" >> "$CURL_LOG"; shift 2 ;;
     --header) printf 'header=%s\\n' "$2" >> "$CURL_LOG"; shift 2 ;;
     --data-urlencode) printf 'data=%s\\n' "$2" >> "$CURL_LOG"; shift 2 ;;
@@ -41,6 +43,7 @@ if [[ "$url" == */token ]]; then
   printf '%s' "$MOCK_TOKEN_HTTP_STATUS"
   exit "$MOCK_TOKEN_CURL_STATUS"
 fi
+printf '%s' "$MOCK_HEADERS" > "$headers"
 printf '%s' "$MOCK_BODY" > "$output"
 printf '%s' "$MOCK_HTTP_STATUS"
 exit "$MOCK_CURL_STATUS"
@@ -65,6 +68,7 @@ exit "$MOCK_CURL_STATUS"
             "MOCK_HTTP_STATUS": "200",
             "MOCK_CURL_STATUS": "0",
             "MOCK_BODY": '{"schemaVersion":2}',
+            "MOCK_HEADERS": 'HTTP/1.1 200 OK\r\nDocker-Content-Digest: sha256:' + 'b' * 64 + '\r\n\r\n',
             "GITHUB_ACTOR": "ci-bot",
             "GH_TOKEN": "test-token",
             "REGISTRY": "ghcr.io",
@@ -96,6 +100,22 @@ exit "$MOCK_CURL_STATUS"
         self.assertIn("invalid manifest digest", result.stderr)
         self.assertFalse(self.curl_log.exists())
 
+    def test_captures_authenticated_manifest_digest_header(self):
+        digest = "sha256:" + "b" * 64
+        result = self.resolve(MOCK_INSPECT_STATUS="1")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), f"ghcr.io/nacosolutions/senshac-runner@{digest}")
+
+    def test_rejects_invalid_or_missing_manifest_digest_header(self):
+        for headers in (
+            "HTTP/1.1 200 OK\r\nDocker-Content-Digest: sha256:bad\r\n",
+            "HTTP/1.1 200 OK\r\n",
+        ):
+            with self.subTest(headers=headers):
+                result = self.resolve(MOCK_INSPECT_STATUS="1", MOCK_HEADERS=headers)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("invalid or missing", result.stderr)
+
     def test_only_authenticated_manifest_unknown_404_means_first_publication(self):
         result = self.resolve(
             MOCK_INSPECT_STATUS="1",
@@ -125,7 +145,6 @@ exit "$MOCK_CURL_STATUS"
             ("404", '{"errors":[{"code":"DENIED"}]}', "0"),
             ("401", '{"errors":[{"code":"UNAUTHORIZED"}]}', "0"),
             ("500", "internal error", "0"),
-            ("200", '{"schemaVersion":2}', "0"),
             ("000", "", "7"),
         )
         for status, body, curl_status in cases:
