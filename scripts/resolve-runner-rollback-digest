@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+image="${1:?Usage: resolve-runner-rollback-digest IMAGE}"
+registry="${image%%/*}"
+repository="${image#*/}"
+: "${GHCR_USERNAME:?GHCR_USERNAME is required}"
+: "${GHCR_TOKEN:?GHCR_TOKEN is required}"
+
+temporary_directory="$(mktemp -d)"
+trap 'rm -rf "$temporary_directory"' EXIT
+
+if docker buildx imagetools inspect "${image}:latest" --format '{{json .Manifest}}' \
+  | jq -er '.digest | strings | select(test("^sha256:[0-9a-f]{64}$"))' \
+    > "$temporary_directory/digest"; then
+  cat "$temporary_directory/digest"
+  exit 0
+else
+  inspect_pipeline_status=("${PIPESTATUS[@]}")
+  if [[ "${inspect_pipeline_status[0]}" == 0 ]]; then
+    echo "Latest manifest metadata has no valid sha256 digest" >&2
+    exit 1
+  fi
+fi
+
+registry_token="$(curl --fail --silent --show-error \
+  --user "${GHCR_USERNAME}:${GHCR_TOKEN}" \
+  --get \
+  --data-urlencode "scope=repository:${repository}:pull" \
+  --data-urlencode "service=${registry}" \
+  "https://${registry}/token" \
+  | jq -er '.token // .access_token | strings | select(length > 0)')"
+response_file="$temporary_directory/manifest-response.json"
+http_status="$(curl --silent --show-error \
+  --output "$response_file" \
+  --write-out '%{http_code}' \
+  --header "Authorization: Bearer ${registry_token}" \
+  --header 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json' \
+  "https://${registry}/v2/${repository}/manifests/latest")"
+
+if [[ "$http_status" == 404 ]] && jq -e 'any(.errors[]?; .code == "MANIFEST_UNKNOWN")' "$response_file" >/dev/null; then
+  printf '%s\n' 'none (first publication)'
+  exit 0
+fi
+
+echo "Unable to confirm first publication: GHCR manifest API returned HTTP ${http_status}" >&2
+cat "$response_file" >&2
+exit 1

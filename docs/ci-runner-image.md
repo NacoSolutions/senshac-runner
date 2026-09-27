@@ -96,7 +96,12 @@ CI; it may download action images and is separate from the no-push smoke test.
 
 This repository produces the image; the web repository consumes it. PR
 verification builds the OCI archive once and tests that artifact. Publication
-smoke-tests the immutable `sha-<commit>` image, records its registry digest,
-and then advances `latest`. Consumer workflows should pin the verified
-`@sha256:` digest rather than a mutable tag. Updating the web consumer remains
-a separate change in `senshac-web`.
+resolves the previous `latest` rollback digest from Docker Buildx remote
+manifest metadata (`.Manifest.digest`), without pulling or downloading image
+layers. If inspection fails, publication marks a first publish only after an
+authenticated GHCR manifest API request confirms HTTP 404 with
+`MANIFEST_UNKNOWN`; other failures stop publication. It then pushes the
+immutable `sha-<commit>` image, deliberately re-pulls and smoke-tests it,
+records its registry digest, and advances `latest`. Consumer workflows should
+pin the verified `@sha256:` digest rather than a mutable tag. Updating the web
+consumer remains a separate change in `senshac-web`.
