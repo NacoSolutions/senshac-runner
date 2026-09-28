@@ -104,6 +104,11 @@ CI_RUNNER_IMAGE=senshac-runner:local \
   devenv shell -- scripts/act-ci /path/to/senshac-web
 ```
 
+The helper rewrites only the temporary cloned workflow's pinned runner image;
+the checked-in web workflow remains unchanged. It defaults to `workflow_dispatch`
+so Act does not need a synthetic pull-request number; set `ACT_EVENT` to use a
+different event supported by the workflow.
+
 Act clones the current Git commit into a temporary checkout, matching GitHub
 CI; it may download action images and is separate from the no-push smoke test.
 

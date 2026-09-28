@@ -54,7 +54,7 @@ printf 'Checking direct runtime tools and non-root filesystem contract: %s\n' "$
     test "$uid" = 1000
     test "$(id -un)" = runner
   fi
-  for tool in bash tar gzip grep git gh bun node gcc unzip chromium jq curl; do
+  for tool in bash tar gzip grep find git gh bun node gcc unzip chromium jq curl; do
     command -v "$tool"
   done
   test -x /lib64/ld-linux-x86-64.so.2

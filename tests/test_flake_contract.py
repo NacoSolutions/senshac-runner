@@ -16,7 +16,7 @@ class FlakeContractTests(unittest.TestCase):
         self.assertIn("glibc_abi_loader=/lib64/ld-linux-x86-64.so.2", FLAKE)
         self.assertIn("assert_metadata glibc_abi_loader '/lib64/ld-linux-x86-64.so.2'", CHECK)
         self.assertIn('inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable"', FLAKE)
-        for package in ("bashInteractive", "cacert", "coreutils", "curl", "gnutar",
+        for package in ("bashInteractive", "cacert", "coreutils", "curl", "findutils", "gnutar",
                         "gnugrep", "gzip", "git", "gh", "jq", "bun", "chromium", "gcc",
                         "nodejs_22", "unzip"):
             self.assertIn(package, FLAKE)
@@ -35,8 +35,8 @@ class FlakeContractTests(unittest.TestCase):
             self.assertIn(path, FLAKE)
         for marker in ("runtime_tools", "runtime_user", "writable_paths", "direct-packaged-runtime"):
             self.assertIn(marker, FLAKE)
-        self.assertIn("runtime_tools=bash bun cacert chromium coreutils curl gcc git gh gnutar gnugrep gzip jq nodejs unzip", FLAKE)
-        self.assertIn("assert_metadata runtime_tools 'bash bun cacert chromium coreutils curl gcc git gh gnutar gnugrep gzip jq nodejs unzip'", CHECK)
+        self.assertIn("runtime_tools=bash bun cacert chromium coreutils curl findutils gcc git gh gnutar gnugrep gzip jq nodejs unzip", FLAKE)
+        self.assertIn("assert_metadata runtime_tools 'bash bun cacert chromium coreutils curl findutils gcc git gh gnutar gnugrep gzip jq nodejs unzip'", CHECK)
         self.assertIn("assert_metadata runtime_user 'runner:1000:1000'", CHECK)
         self.assertIn("for output in runtime ociImage", CHECK)
         self.assertIn('path-info --recursive ".#$output"', CHECK)
@@ -53,8 +53,8 @@ class FlakeContractTests(unittest.TestCase):
         self.assertIn('mktemp /tmp/.oci-tmp.XXXXXX', VERIFY)
         self.assertIn('mktemp /workspace/.oci-workspace.XXXXXX', VERIFY)
         self.assertIn('command -v "$tool"', VERIFY)
-        self.assertIn("for tool in bash tar gzip grep git gh bun node gcc unzip chromium jq curl; do", VERIFY)
-        self.assertIn("for tool in tar gzip grep git gh bun node gcc unzip chromium jq curl; do", (ROOT / "scripts/verify-ci-runner").read_text())
+        self.assertIn("for tool in bash tar gzip grep find git gh bun node gcc unzip chromium jq curl; do", VERIFY)
+        self.assertIn("for tool in tar gzip grep find git gh bun node gcc unzip chromium jq curl; do", (ROOT / "scripts/verify-ci-runner").read_text())
         self.assertIn("--userns=keep-id:uid=1000,gid=1000", SMOKE)
         self.assertIn('"$image" bash /runner-check/verify-ci-runner', SMOKE)
 
