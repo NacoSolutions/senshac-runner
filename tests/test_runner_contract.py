@@ -35,12 +35,40 @@ class RunnerContractTests(unittest.TestCase):
     def test_act_ci_consumes_target_path_and_forwards_act_arguments(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            web_repo = root / "senshac-web"
+            workflow = web_repo / ".github/workflows/ci.yml"
+            workflow.parent.mkdir(parents=True)
+            checked_in_image = "ghcr.io/nacosolutions/senshac-runner@sha256:" + "a" * 64
+            workflow.write_text(
+                "name: Test\njobs:\n  contract:\n    container:\n"
+                f"      image: {checked_in_image}\n"
+            )
+            subprocess.run(["git", "init", "-q", "-b", "main", str(web_repo)], check=True)
+            subprocess.run(["git", "-C", str(web_repo), "add", "."], check=True)
+            subprocess.run(
+                [
+                    "git", "-C", str(web_repo), "-c", "user.name=Test",
+                    "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture",
+                ],
+                check=True,
+            )
+            github_remote = "https://github.com/NacoSolutions/senshac-web.git"
+            subprocess.run(
+                ["git", "-C", str(web_repo), "remote", "add", "origin", github_remote],
+                check=True,
+            )
             fake_bin = root / "bin"
             fake_bin.mkdir()
-            capture = root / "act-args"
+            args_capture = root / "act-args"
+            image_capture = root / "act-image"
+            remote_capture = root / "act-origin"
+            branch_capture = root / "act-branch"
             fake_act = fake_bin / "act"
             fake_act.write_text(
-                '#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "$ACT_CAPTURE"\n'
+                '#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "$ACT_ARGS_CAPTURE"\n'
+                'grep "^      image:" .github/workflows/ci.yml > "$ACT_IMAGE_CAPTURE"\n'
+                'git remote get-url origin > "$ACT_ORIGIN_CAPTURE"\n'
+                'git branch --show-current > "$ACT_BRANCH_CAPTURE"\n'
             )
             fake_act.chmod(0o755)
             runtime = root / "runtime"
@@ -49,23 +77,33 @@ class RunnerContractTests(unittest.TestCase):
             with socket.socket(socket.AF_UNIX) as podman_socket:
                 podman_socket.bind(str(socket_path))
                 result = subprocess.run(
-                    [str(ROOT / "scripts/act-ci"), str(ROOT), "--dryrun"],
+                    [str(ROOT / "scripts/act-ci"), str(web_repo), "--dryrun"],
                     cwd=ROOT,
                     env={
                         **os.environ,
                         "PATH": f"{fake_bin}:{os.environ['PATH']}",
                         "XDG_RUNTIME_DIR": str(runtime),
-                        "ACT_CAPTURE": str(capture),
+                        "ACT_ARGS_CAPTURE": str(args_capture),
+                        "ACT_IMAGE_CAPTURE": str(image_capture),
+                        "ACT_ORIGIN_CAPTURE": str(remote_capture),
+                        "ACT_BRANCH_CAPTURE": str(branch_capture),
+                        "CI_RUNNER_IMAGE": "senshac-runner-oci:modular",
+                        "ACT_EVENT": "workflow_dispatch",
                     },
                     capture_output=True,
                     text=True,
                     timeout=10,
                 )
             self.assertEqual(result.returncode, 0, result.stderr)
-            act_args = capture.read_text().splitlines()
-            self.assertNotIn(str(ROOT), act_args)
+            act_args = args_capture.read_text().splitlines()
+            self.assertNotIn(str(web_repo), act_args)
+            self.assertEqual(act_args[0], "workflow_dispatch")
             self.assertEqual(act_args[act_args.index("--job") + 1], "contract")
             self.assertEqual(act_args[-1], "--dryrun")
+            self.assertEqual(image_capture.read_text().rstrip("\n"), "      image: senshac-runner-oci:modular")
+            self.assertEqual(remote_capture.read_text().strip(), github_remote)
+            self.assertEqual(branch_capture.read_text().strip(), "main")
+            self.assertEqual(workflow.read_text().splitlines()[-1], f"      image: {checked_in_image}")
 
     def test_verification_checks_rootless_identity_and_writable_mounts(self):
         self.assertIn('verification_workspace="$(mktemp -d', VERIFY_NIX_BASE)
@@ -81,6 +119,7 @@ class RunnerContractTests(unittest.TestCase):
         self.assertIn('test -w /workspace', VERIFY_NIX_BASE)
         self.assertIn('test "$(stat -c %a /tmp)" = 1777', VERIFY_NIX_BASE)
         self.assertIn('command -v "$tool"', VERIFY_NIX_BASE)
+        self.assertIn('for tool in bash tar gzip grep find git gh bun node gcc unzip chromium jq curl;', VERIFY_NIX_BASE)
         self.assertIn('mktemp "$HOME/.oci-home.XXXXXX"', VERIFY_NIX_BASE)
         self.assertIn('mktemp /tmp/.oci-tmp.XXXXXX', VERIFY_NIX_BASE)
         self.assertIn('mktemp /workspace/.oci-workspace.XXXXXX', VERIFY_NIX_BASE)

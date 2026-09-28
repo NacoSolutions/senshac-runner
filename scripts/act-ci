@@ -12,6 +12,7 @@ else
   fi
 fi
 runner_image="${CI_RUNNER_IMAGE:-ghcr.io/nacosolutions/senshac-runner@sha256:69906cef37c3d9eb53638aca5af1024bbb46785f49569155d6b28c2fe3d6bb57}"
+event="${ACT_EVENT:-workflow_dispatch}"
 if [[ -z "$target_repo" ]]; then
   echo "Usage: SENSHAC_WEB_REPO=/path/to/senshac [args...] $0" >&2
   exit 2
@@ -21,6 +22,7 @@ if [[ ! -e "$target_repo/.git" ]]; then
   echo "Target repository is not a Git worktree or wrapper: $target_repo" >&2
   exit 1
 fi
+origin_url="$(git -C "$target_repo" remote get-url origin)"
 
 if [[ ! -S "$socket" ]]; then
   systemctl --user start podman.socket
@@ -30,14 +32,34 @@ export DOCKER_HOST="unix://${socket}"
 
 common_dir="$(git -C "$target_repo" rev-parse --path-format=absolute --git-common-dir)"
 head="$(git -C "$target_repo" rev-parse HEAD)"
+branch="$(git -C "$target_repo" branch --show-current)"
+if [[ -z "$branch" ]]; then
+  default_ref="$(git -C "$target_repo" symbolic-ref --quiet --short refs/remotes/origin/HEAD || true)"
+  branch="${default_ref#origin/}"
+fi
+if [[ -z "$branch" ]]; then
+  echo "Cannot determine target branch for local Act run" >&2
+  exit 1
+fi
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 git clone --no-hardlinks "$common_dir" "$tmp/repo" >/dev/null
-git -C "$tmp/repo" checkout --detach "$head" >/dev/null
+git -C "$tmp/repo" checkout -B "$branch" "$head" >/dev/null
+git -C "$tmp/repo" remote set-url origin "$origin_url"
 cd "$tmp/repo"
 
-act pull_request \
+workflow=.github/workflows/ci.yml
+if [[ ! -f "$workflow" ]]; then
+  echo "Missing Act workflow: $workflow" >&2
+  exit 1
+fi
+CI_RUNNER_IMAGE="$runner_image" perl -0pi -e '
+  my $count = s{^      image: ghcr\.io/nacosolutions/senshac-runner\@sha256:[0-9a-f]{64}$}{      image: $ENV{CI_RUNNER_IMAGE}}gm;
+  die "Expected one pinned Senshac runner container image, found $count\\n" unless $count == 1;
+' "$workflow"
+
+act "$event" \
   --workflows .github/workflows/ci.yml \
   --job contract \
   --platform "ubuntu-latest=$runner_image" \

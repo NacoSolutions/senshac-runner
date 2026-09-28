@@ -65,7 +65,7 @@ assert_metadata() {
 
 assert_metadata image 'senshac-runner-oci:modular'
 assert_metadata base_image none
-assert_metadata runtime_tools 'bash bun cacert chromium coreutils curl gcc git gh gnutar gnugrep gzip jq nodejs unzip'
+assert_metadata runtime_tools 'bash bun cacert chromium coreutils curl findutils gcc git gh gnutar gnugrep gzip jq nodejs unzip'
 assert_metadata runtime_user 'runner:1000:1000'
 assert_metadata writable_paths '/home/runner /tmp /workspace'
 assert_metadata runtime_contract 'direct-packaged-runtime'

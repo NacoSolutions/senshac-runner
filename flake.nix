@@ -10,7 +10,7 @@
       packages = forEachSystem (pkgs:
         let
           runtimePackages = with pkgs; [
-            bashInteractive cacert coreutils curl gnutar gnugrep gzip git gh jq
+            bashInteractive cacert coreutils curl findutils gnutar gnugrep gzip git gh jq
             bun chromium gcc nodejs_22 unzip
           ];
           runtime = pkgs.buildEnv {
@@ -72,7 +72,7 @@
               'image=senshac-runner-oci:modular' \
               'runtime=${runtime}' \
               'image_tarball=${ociImage}' \
-              'runtime_tools=bash bun cacert chromium coreutils curl gcc git gh gnutar gnugrep gzip jq nodejs unzip' \
+              'runtime_tools=bash bun cacert chromium coreutils curl findutils gcc git gh gnutar gnugrep gzip jq nodejs unzip' \
               'runtime_user=runner:1000:1000' \
               'writable_paths=/home/runner /tmp /workspace' \
               'runtime_contract=direct-packaged-runtime' \
