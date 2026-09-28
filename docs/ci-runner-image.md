@@ -89,11 +89,19 @@ git diff --check
 ## Local CI and image handoff
 
 `scripts/act-ci` maps `ubuntu-latest` to the same runner image and uses the
-current user's rootless Podman socket. Act must be installed separately. A
-committed web checkout can be exercised without GHCR credentials using:
+current user's rootless Podman socket. Act is included in `devenv.nix`; run it
+from the project shell. The default image is the immutable digest currently
+validated by `senshac-web`:
 
 ```bash
-CI_RUNNER_IMAGE=senshac-runner:local scripts/act-ci /path/to/senshac-web
+devenv shell -- scripts/act-ci /path/to/senshac-web
+```
+
+For a local candidate, set `CI_RUNNER_IMAGE` explicitly:
+
+```bash
+CI_RUNNER_IMAGE=senshac-runner:local \
+  devenv shell -- scripts/act-ci /path/to/senshac-web
 ```
 
 Act clones the current Git commit into a temporary checkout, matching GitHub
