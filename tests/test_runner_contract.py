@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import socket
 import subprocess
 import tempfile
 import unittest
@@ -8,6 +9,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 VERIFY_NIX_BASE = (ROOT / "scripts/verify-nix-base").read_text()
 BUILD_CI_RUNNER = (ROOT / "scripts/build-ci-runner").read_text()
+ACT_CI = (ROOT / "scripts/act-ci").read_text()
 
 
 class RunnerContractTests(unittest.TestCase):
@@ -23,6 +25,47 @@ class RunnerContractTests(unittest.TestCase):
         self.assertNotIn("devenv", BUILD_CI_RUNNER.lower())
         self.assertNotIn("check-devenv-lock", BUILD_CI_RUNNER)
         self.assertIn('"$repo#ociImage"', BUILD_CI_RUNNER)
+
+    def test_act_defaults_to_verified_immutable_runner_image(self):
+        digest = "ghcr.io/nacosolutions/senshac-runner@sha256:69906cef37c3d9eb53638aca5af1024bbb46785f49569155d6b28c2fe3d6bb57"
+        self.assertIn(f'runner_image="${{CI_RUNNER_IMAGE:-{digest}}}"', ACT_CI)
+        self.assertIn('--platform "ubuntu-latest=$runner_image"', ACT_CI)
+        self.assertNotIn("senshac-runner:latest", ACT_CI)
+
+    def test_act_ci_consumes_target_path_and_forwards_act_arguments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake_bin = root / "bin"
+            fake_bin.mkdir()
+            capture = root / "act-args"
+            fake_act = fake_bin / "act"
+            fake_act.write_text(
+                '#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "$ACT_CAPTURE"\n'
+            )
+            fake_act.chmod(0o755)
+            runtime = root / "runtime"
+            socket_path = runtime / "podman/podman.sock"
+            socket_path.parent.mkdir(parents=True)
+            with socket.socket(socket.AF_UNIX) as podman_socket:
+                podman_socket.bind(str(socket_path))
+                result = subprocess.run(
+                    [str(ROOT / "scripts/act-ci"), str(ROOT), "--dryrun"],
+                    cwd=ROOT,
+                    env={
+                        **os.environ,
+                        "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                        "XDG_RUNTIME_DIR": str(runtime),
+                        "ACT_CAPTURE": str(capture),
+                    },
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            act_args = capture.read_text().splitlines()
+            self.assertNotIn(str(ROOT), act_args)
+            self.assertEqual(act_args[act_args.index("--job") + 1], "contract")
+            self.assertEqual(act_args[-1], "--dryrun")
 
     def test_verification_checks_rootless_identity_and_writable_mounts(self):
         self.assertIn('verification_workspace="$(mktemp -d', VERIFY_NIX_BASE)

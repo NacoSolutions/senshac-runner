@@ -3,8 +3,15 @@ set -euo pipefail
 
 socket="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman/podman.sock"
 
-target_repo="${SENSHAC_WEB_REPO:-${1:-}}"
-runner_image="${CI_RUNNER_IMAGE:-ghcr.io/nacosolutions/senshac-runner:latest}"
+if [[ -n "${SENSHAC_WEB_REPO:-}" ]]; then
+  target_repo="$SENSHAC_WEB_REPO"
+else
+  target_repo="${1:-}"
+  if [[ $# -gt 0 ]]; then
+    shift
+  fi
+fi
+runner_image="${CI_RUNNER_IMAGE:-ghcr.io/nacosolutions/senshac-runner@sha256:69906cef37c3d9eb53638aca5af1024bbb46785f49569155d6b28c2fe3d6bb57}"
 if [[ -z "$target_repo" ]]; then
   echo "Usage: SENSHAC_WEB_REPO=/path/to/senshac [args...] $0" >&2
   exit 2
@@ -32,7 +39,7 @@ cd "$tmp/repo"
 
 act pull_request \
   --workflows .github/workflows/ci.yml \
-  --job ci \
+  --job contract \
   --platform "ubuntu-latest=$runner_image" \
   --container-daemon-socket - \
   --container-architecture linux/amd64 \
