@@ -8,7 +8,6 @@ on:
       - '.github/workflows/**'
       - 'scripts/**'
       - 'tests/**'
-      - 'Containerfile.warren-agent'
       - 'flake.nix'
       - 'AGENTS.md'
       - 'docs/**'
@@ -36,13 +35,10 @@ jobs:
           for script in scripts/*; do bash -n "$script"; done
           test -s AGENTS.md
           test -s docs/ci-runner-image.md
-          test -s docs/warren-agent-runtime.md
           test -x scripts/build-ci-runner
           test -x scripts/verify-ci-runner
           test -x scripts/verify-ci-runner-local
           test -x scripts/act-ci
-          test -x scripts/build-warren-agent
-          test -s Containerfile.warren-agent
       - name: Validate devenv configuration and regression contracts
         run: |
           scripts/check-devenv-lock
