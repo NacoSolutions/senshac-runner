@@ -13,6 +13,7 @@ on:
       - 'docs/**'
       - '.seeds/**'
       - '.mulch/**'
+      - '.warren/**'
   workflow_dispatch:
 
 concurrency:
