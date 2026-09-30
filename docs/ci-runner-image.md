@@ -16,8 +16,9 @@ ghcr.io/nacosolutions/senshac-runner:sha-<commit>
 
 ## Runtime contract
 
-The flake packages Bash, Bun, CA certificates, Chromium, coreutils, curl, GCC,
-Git, GitHub CLI, GNU tar, grep, gzip, jq, Node.js 22, and unzip. The image
+The flake packages Bash, Bun, CA certificates, Chromium, coreutils, curl,
+fontconfig (including its default configuration and fallback fonts), GCC, Git,
+GitHub CLI, GNU tar, grep, gzip, jq, Node.js 22, and unzip. The image
 provides a non-root `runner` account (UID/GID 1000), `/workspace` as its working
 directory, and writable `/home/runner`, `/workspace`, and `/tmp` (mode `1777`).
 It also supplies `/usr/bin/env` and `/usr/bin/bash` for mounted CI scripts.

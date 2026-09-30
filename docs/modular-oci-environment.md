@@ -12,7 +12,8 @@ the repository CI independently of image production.
 ## Runtime contract
 
 The OCI closure packages Bash, Bun, CA certificates, Chromium, coreutils, curl,
-GCC, Git, GitHub CLI, GNU tar, gzip, jq, Node.js 22, and unzip. These tools are
+fontconfig and its default configuration/fallback fonts, GCC, Git, GitHub CLI,
+GNU tar, gzip, jq, Node.js 22, and unzip. These tools are
 available directly on `PATH`. The image defines a real `runner` account with
 UID/GID 1000, configures it as the default image user, and uses `/workspace`
 as its working directory. `/home/runner` and `/workspace` belong to that user;

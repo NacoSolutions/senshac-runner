@@ -27,7 +27,7 @@
         let
           runtimePackages = with pkgs; [
             bashInteractive cacert coreutils curl findutils gnutar gnugrep gzip git gh jq
-            bun chromium gcc nodejs_22 unzip
+            bun chromium fontconfig gcc nodejs_22 unzip
           ];
           runtime = pkgs.buildEnv {
             name = "senshac-runner-runtime";
@@ -55,6 +55,7 @@
               printf '%s\n' 'passwd: files' 'group: files' 'hosts: files dns' > ./etc/nsswitch.conf
               chmod 0755 ./home ./home/runner ./workspace
               chmod 1777 ./tmp
+              ln -s ${pkgs.fontconfig}/etc/fonts ./etc/fonts
             '';
             fakeRootCommands = ''
               chown 1000:1000 ./home/runner ./workspace
@@ -68,6 +69,7 @@
                 "HOME=/home/runner"
                 "TMPDIR=/tmp"
                 "LD_LIBRARY_PATH=${pkgs.glibc}/lib"
+                "FONTCONFIG_FILE=${pkgs.fontconfig}/etc/fonts/fonts.conf"
                 "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
                 "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               ];
@@ -88,7 +90,7 @@
               'image=senshac-runner-oci:modular' \
               'runtime=${runtime}' \
               'image_tarball=${ociImage}' \
-              'runtime_tools=bash bun cacert chromium coreutils curl findutils gcc git gh gnutar gnugrep gzip jq nodejs unzip' \
+              'runtime_tools=bash bun cacert chromium coreutils curl fc-match findutils fontconfig gcc git gh gnutar gnugrep gzip jq nodejs unzip' \
               'runtime_user=runner:1000:1000' \
               'writable_paths=/home/runner /tmp /workspace' \
               'runtime_contract=direct-packaged-runtime' \
