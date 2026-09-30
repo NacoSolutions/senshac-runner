@@ -14,9 +14,10 @@ test -d /tmp && test -w /tmp
 printf 'runtime uid=%s home=%s\n' "$uid" "$HOME"
 printf 'PATH=%s\n' "$PATH"
 
-for tool in tar gzip grep find git gh bun node gcc unzip chromium jq curl; do
+for tool in tar gzip grep find git gh bun node gcc unzip chromium fc-match jq curl; do
   command -v "$tool"
 done
+fc-match sans-serif >/dev/null
 tar_path="$(command -v tar)"
 test -x "$tar_path"
 "$tar_path" --version
