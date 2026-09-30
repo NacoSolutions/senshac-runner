@@ -35,8 +35,8 @@ class FlakeContractTests(unittest.TestCase):
             self.assertIn(path, FLAKE)
         for marker in ("runtime_tools", "runtime_user", "writable_paths", "direct-packaged-runtime"):
             self.assertIn(marker, FLAKE)
-        self.assertIn("FONTCONFIG_FILE=${pkgs.fontconfig}/etc/fonts/fonts.conf", FLAKE)
-        self.assertIn("ln -s ${pkgs.fontconfig}/etc/fonts ./etc/fonts", FLAKE)
+        self.assertIn("FONTCONFIG_FILE=${pkgs.fontconfig.out}/etc/fonts/fonts.conf", FLAKE)
+        self.assertIn("ln -s ${pkgs.fontconfig.out}/etc/fonts ./etc/fonts", FLAKE)
         self.assertIn("runtime_tools=bash bun cacert chromium coreutils curl fc-match findutils fontconfig gcc git gh gnutar gnugrep gzip jq nodejs unzip", FLAKE)
         self.assertIn("assert_metadata runtime_tools 'bash bun cacert chromium coreutils curl fc-match findutils fontconfig gcc git gh gnutar gnugrep gzip jq nodejs unzip'", CHECK)
         self.assertIn("assert_metadata runtime_user 'runner:1000:1000'", CHECK)
