@@ -55,7 +55,7 @@
               printf '%s\n' 'passwd: files' 'group: files' 'hosts: files dns' > ./etc/nsswitch.conf
               chmod 0755 ./home ./home/runner ./workspace
               chmod 1777 ./tmp
-              ln -s ${pkgs.fontconfig}/etc/fonts ./etc/fonts
+              ln -s ${pkgs.fontconfig.out}/etc/fonts ./etc/fonts
             '';
             fakeRootCommands = ''
               chown 1000:1000 ./home/runner ./workspace
@@ -69,7 +69,7 @@
                 "HOME=/home/runner"
                 "TMPDIR=/tmp"
                 "LD_LIBRARY_PATH=${pkgs.glibc}/lib"
-                "FONTCONFIG_FILE=${pkgs.fontconfig}/etc/fonts/fonts.conf"
+                "FONTCONFIG_FILE=${pkgs.fontconfig.out}/etc/fonts/fonts.conf"
                 "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
                 "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               ];
