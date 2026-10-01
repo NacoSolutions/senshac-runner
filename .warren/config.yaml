@@ -1,7 +1,5 @@
 # Pin the modular runner's Docker/Kubernetes Warren runs to the tested image.
 defaultRole: pi
-defaultProvider: openrouter
-defaultModel: openai/gpt-5.6-luna
 defaultBranch: main
 runBranchPrefix: warren
 agentImage: ghcr.io/rogernavelsaker/warren-agent:latest
