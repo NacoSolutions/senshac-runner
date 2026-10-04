@@ -32,12 +32,8 @@ do not remove the old container until readiness and a test run succeed.
    branch, and delivers a PR.
 7. Repeat for the other Warren instance only after the first succeeds.
 
-The agent image is pinned by digest in `.warren/config.yaml`:
-
-```text
-ghcr.io/nacosolutions/senshac-warren-agent@sha256:59d9810bb74a280821623e0eaa992e6e64cb8bc7c896c6467b7cb4805a3c9ded
-```
-
-Do not use `latest` for the migration test. Roll back by restoring the prior
-Warren app container and leaving the data volume untouched.
+Use the exact image reference configured on the Warren instance for the
+migration test. Keep repository `.warren/config.yaml` free of image overrides.
+Roll back by restoring the prior Warren app container and leaving the data
+volume untouched.
 Docker-provider runs require the control plane and sibling agents to share the same host-visible workspace path.
