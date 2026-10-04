@@ -49,7 +49,7 @@ for name in ('direct execution', 'instruction specificity', 'positive phrasing',
 config = yaml.safe_load((root / '.warren/config.yaml').read_text())
 assert not {'agentImage', 'defaultProvider', 'defaultModel'} & config.keys()
 assert (root / '.agents/skills/bounded-warren-task/SKILL.md').is_file()
-print('guidance and Warren configuration validated')
+print('guidance and centrally-owned Warren configuration validated')
 PY
 ```
 
