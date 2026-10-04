@@ -28,7 +28,7 @@ do not remove the old container until readiness and a test run succeed.
 3. Keep `WARREN_DATA_DIR` and the volume's in-container path unchanged.
 4. Verify `/readyz` reports a healthy Docker CLI/provider.
 5. Dispatch a documentation-only run against `senshac-runner`.
-6. Confirm the run uses the pinned digest from `.warren/config.yaml`, creates a
+6. Confirm the run uses the image configured on the Warren instance, creates a
    branch, and delivers a PR.
 7. Repeat for the other Warren instance only after the first succeeds.
 
