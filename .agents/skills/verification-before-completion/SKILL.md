@@ -12,8 +12,7 @@ import yaml
 
 root = Path('.')
 config = yaml.safe_load((root / '.warren/config.yaml').read_text())
-assert config['defaultProvider'] == 'openrouter'
-assert config['defaultModel'] == 'openai/gpt-5.6-luna'
+assert not {'agentImage', 'defaultProvider', 'defaultModel'} & config.keys()
 for name in ('git-workflow', 'managing-environments', 'dependency-hygiene',
              'verification-before-completion'):
     assert (root / '.agents/skills' / name / 'SKILL.md').is_file()
