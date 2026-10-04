@@ -47,8 +47,7 @@ for name in ('direct execution', 'instruction specificity', 'positive phrasing',
              'defense in depth', 'gentle coding', 'token economy'):
     assert f'## {name.title()}' in principles
 config = yaml.safe_load((root / '.warren/config.yaml').read_text())
-assert config['defaultProvider'] == 'openrouter'
-assert config['defaultModel'] == 'openai/gpt-5.6-luna'
+assert not {'agentImage', 'defaultProvider', 'defaultModel'} & config.keys()
 assert (root / '.agents/skills/bounded-warren-task/SKILL.md').is_file()
 print('guidance and Warren configuration validated')
 PY
