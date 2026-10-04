@@ -31,4 +31,4 @@ the objective before reporting completion.
 
 - The bounded documentation/configuration check prints its success message and exits zero.
 - `git diff --check` exits zero.
-- The final commit contains the four role skills, their `AGENTS.md` links, and the required Warren defaults.
+- The final commit contains the requested role skills and links; Warren image and routing defaults remain centrally configured.
