@@ -12,8 +12,7 @@ import yaml
 
 root = Path('.')
 config = yaml.safe_load((root / '.warren/config.yaml').read_text())
-assert config['defaultProvider'] == 'openrouter'
-assert config['defaultModel'] == 'openai/gpt-5.6-luna'
+assert not {'agentImage', 'defaultProvider', 'defaultModel'} & config.keys()
 for name in ('git-workflow', 'managing-environments', 'dependency-hygiene',
              'verification-before-completion'):
     assert (root / '.agents/skills' / name / 'SKILL.md').is_file()
@@ -32,4 +31,4 @@ the objective before reporting completion.
 
 - The bounded documentation/configuration check prints its success message and exits zero.
 - `git diff --check` exits zero.
-- The final commit contains the four role skills, their `AGENTS.md` links, and the required Warren defaults.
+- The final commit contains the requested role skills and links; Warren image and routing defaults remain centrally configured.
