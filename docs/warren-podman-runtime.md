@@ -1,8 +1,10 @@
 # Warren sibling-container runtime on Podman
 
-The published Senshac agent image is selected only by Warren's Docker/Kubernetes
-providers. The current Warren containers use the local provider, so they do not
-consume `.warren/config.yaml`'s `agentImage` pin.
+Warren's container-backed agent image is owned by each Warren instance through
+`WARREN_DOCKER_AGENT_IMAGE` (or `WARREN_K8S_AGENT_IMAGE`). Repository
+`.warren/config.yaml` files keep repository policy and omit `agentImage`.
+The production instances use Docker runtime, so this instance-level setting
+determines the agent container image.
 
 ## Preconditions
 
