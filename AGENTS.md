@@ -30,6 +30,8 @@ Use these focused role skills for their corresponding work:
 
 - [Git Workflow](.agents/skills/git-workflow/SKILL.md) for scoped diffs, commits,
   and delivery checks.
+- [Terrarium Triage](.agents/skills/terrarium-triage/SKILL.md) for selecting one owned, unblocked Seed from the canonical Senshac graph.
+- [Terrarium Triage](.agents/skills/terrarium-triage/SKILL.md) for selecting one owned, unblocked Seed from the canonical Senshac graph.
 - [Managing Environments](.agents/skills/managing-environments/SKILL.md) for
   devenv, rootless Podman, Act, and producer/consumer validation.
 - [Dependency Hygiene](.agents/skills/dependency-hygiene/SKILL.md) for devenv
