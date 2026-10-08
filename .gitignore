@@ -44,3 +44,4 @@ media/processed/
 coverage/
 playwright-report/
 test-results/
+.engram/
