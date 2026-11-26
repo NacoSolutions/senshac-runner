@@ -2,6 +2,8 @@
 {
   name = "senshac-runner";
 
+  imports = [ /workspace/common/main/devenv.nix ];
+
   packages = with pkgs; [
     act age betterleaks biome bun chromium curl nixfmt-rfc-style fd findutils
     ripgrep procps gnugrep gcc glibc gnutar gh git jq perl sops

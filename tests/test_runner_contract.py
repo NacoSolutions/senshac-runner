@@ -132,7 +132,8 @@ class RunnerContractTests(unittest.TestCase):
         root_inputs = lock["nodes"][lock["root"]]["inputs"]
         nixpkgs = lock["nodes"]["nixpkgs"]
         self.assertEqual(lock["version"], 7)
-        self.assertEqual(root_inputs, {"devenv": "devenv", "nixpkgs": "nixpkgs"})
+        self.assertEqual(root_inputs, {"devenv": "devenv", "multiverse": "multiverse",
+            "nixpkgs": "nixpkgs", "roger-navelsaker": "roger-navelsaker"})
         self.assertIn("url: github:NixOS/nixpkgs/nixpkgs-unstable", manifest)
         self.assertIn("devenv", lock["nodes"])
         self.assertNotIn("git-hooks", lock["nodes"])
@@ -149,7 +150,7 @@ class RunnerContractTests(unittest.TestCase):
                 self.assertTrue(node["locked"].get("rev"), name)
                 self.assertTrue(node["locked"].get("narHash"), name)
         self.assertIn('Object.hasOwn(lock.nodes, name)', checker)
-        self.assertIn('JSON.stringify(["devenv", "nixpkgs"])', checker)
+        self.assertIn('const expectedRootInputs = ["devenv", "multiverse", "nixpkgs", "roger-navelsaker"];', checker)
         self.assertNotIn("16ec914f6fb6f599ce988427d9d94efddf25fe6d", checker)
 
     def test_smoke_propagates_failures(self):
