@@ -14,12 +14,12 @@ if (lock.version !== 7) {
 if (!lock.nodes || typeof lock.nodes !== "object" || !lock.nodes[lock.root]) {
   throw new Error("devenv.lock has no root node");
 }
+const expectedRootInputs = ["devenv", "multiverse", "nixpkgs", "roger-navelsaker"];
 const rootInputs = lock.nodes[lock.root].inputs;
 if (!rootInputs || typeof rootInputs !== "object" ||
-    JSON.stringify(Object.keys(rootInputs).sort()) !== JSON.stringify(["devenv", "nixpkgs"]) ||
-    rootInputs.devenv !== "devenv" || rootInputs.nixpkgs !== "nixpkgs" ||
-    !lock.nodes.devenv || !lock.nodes.nixpkgs) {
-  throw new Error("devenv.lock root must resolve devenv and nixpkgs inputs");
+    JSON.stringify(Object.keys(rootInputs).sort()) !== JSON.stringify(expectedRootInputs) ||
+    expectedRootInputs.some((name) => rootInputs[name] !== name || !lock.nodes[name])) {
+  throw new Error(`devenv.lock root must resolve inputs: ${expectedRootInputs.join(", ")}`);
 }
 for (const name of ["git-hooks", "gitignore"]) {
   if (Object.hasOwn(lock.nodes, name)) {
